@@ -1,2 +1,9 @@
-/target
-Cargo.lock
+# Rust build dirs for library and example projects
+/target/
+/examples/winit_wgpu/target/
+
+# rustfmt backup files
+**/*.rs.bk
+
+# Library Cargo.lock
+/Cargo.lock

@@ -1,0 +1,91 @@
+// TODO(yan): Values for margin, border and padding could be split into
+// horizontal and vertical, or even per rect side, but only do that if it is
+// actually useful as it otherwise takes a lot of space in the Ctrl struct.
+
+pub struct Theme {
+    pub button_border_color: u32,
+    pub button_border_color_hovered: u32,
+    pub button_border_color_active: u32,
+    pub button_background_color: u32,
+    pub button_background_color_hovered: u32,
+    pub button_background_color_active: u32,
+    pub button_text_color: u32,
+    pub button_text_color_hovered: u32,
+    pub button_text_color_active: u32,
+    pub button_width: f32,
+    pub button_height: f32,
+    pub button_margin: f32,
+    pub button_border: f32,
+
+    pub panel_border_color: u32,
+    pub panel_background_color: u32,
+    pub panel_border: f32,
+    pub panel_padding: f32,
+
+    pub window_border_color: u32,
+    pub window_border_color_hovered: u32,
+    pub window_background_color: u32,
+    pub window_background_color_hovered: u32,
+    pub window_border: f32,
+    pub window_padding: f32,
+
+    pub text_input_border_color: u32,
+    pub text_input_border_color_hovered: u32,
+    pub text_input_border_color_active: u32,
+    pub text_input_background_color: u32,
+    pub text_input_background_color_hovered: u32,
+    pub text_input_background_color_active: u32,
+    pub text_input_text_color: u32,
+    pub text_input_text_color_hovered: u32,
+    pub text_input_text_color_active: u32,
+    pub text_input_width: f32,
+    pub text_input_height: f32,
+    pub text_input_margin: f32,
+    pub text_input_border: f32,
+    pub text_input_padding: f32,
+}
+
+impl Theme {
+    pub const DEFAULT: Self = Self {
+        button_border_color: 0xa0a0a0ff,
+        button_border_color_hovered: 0xb0b0b0ff,
+        button_border_color_active: 0xd0d0d0ff,
+        button_background_color: 0x606060ff,
+        button_background_color_hovered: 0x707070ff,
+        button_background_color_active: 0x808080ff,
+        button_text_color: 0xffffffff,
+        button_text_color_hovered: 0xffffffff,
+        button_text_color_active: 0xffffffff,
+        button_width: 200.0,
+        button_height: 30.0,
+        button_margin: 2.0,
+        button_border: 1.0,
+
+        panel_border_color: 0xa0a0a050,
+        panel_background_color: 0xffffff00,
+        panel_border: 1.0,
+        panel_padding: 5.0,
+
+        window_border_color: 0xa0a0a0ff,
+        window_border_color_hovered: 0xb0b0b0ff,
+        window_background_color: 0x606060d0,
+        window_background_color_hovered: 0x626262d0,
+        window_border: 1.0,
+        window_padding: 10.0,
+
+        text_input_border_color: 0xa0a0a050,
+        text_input_border_color_hovered: 0xa0a0a070,
+        text_input_border_color_active: 0xa0a0a0ff,
+        text_input_background_color: 0xffffff00,
+        text_input_background_color_hovered: 0xffffff00,
+        text_input_background_color_active: 0xffffff00,
+        text_input_text_color: 0xffffffff,
+        text_input_text_color_hovered: 0xffffffff,
+        text_input_text_color_active: 0xffffffff,
+        text_input_width: 200.0,
+        text_input_height: 30.0,
+        text_input_margin: 2.0,
+        text_input_border: 1.0,
+        text_input_padding: 10.0,
+    };
+}

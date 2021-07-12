@@ -1,0 +1,30 @@
+[package]
+name = "guise"
+version = "0.1.0"
+edition = "2018"
+
+authors = ["yanchith <yanchi.toth@gmail.com>"]
+keywords = ["gui", "graphics"]
+categories = ["gui", "imgui", "portable"]
+description = "A winit & wgpu example for guise"
+readme = "README.md"
+repository = "https://github.com/virtual-sunset/guise"
+license = "MIT"
+
+[features]
+font_ibm_plex_mono = []
+font_ibm_plex_sans_jp = []
+font_proggy_clean = []
+font_roboto = []
+default = []
+
+[dependencies]
+arrayvec = "0.7.1"
+bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+fontdue = "0.5.2"
+hashbrown = "0.11.2"
+log = { version = "0.4.14", optional = true }
+
+[dev-dependencies]
+quickcheck = "1.0.3"
+quickcheck_macros = "1.0.0"

@@ -1,4 +1,4 @@
-# yuice
+# guise
 
 A portable game UI library
 

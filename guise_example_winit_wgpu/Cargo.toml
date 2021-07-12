@@ -1,0 +1,23 @@
+[package]
+name = "guise_example_winit_wgpu"
+version = "0.1.0"
+edition = "2018"
+
+authors = ["yanchith <yanchi.toth@gmail.com>"]
+keywords = ["gui", "graphics"]
+categories = ["gui", "imgui", "portable"]
+description = "A winit & wgpu example for guise"
+readme = "README.md"
+repository = "https://github.com/virtual-sunset/guise"
+license = "MIT"
+
+[dependencies]
+arrayvec = "0.7.1"
+bytemuck = { version = "1.7.2", features = ["derive"] }
+log = "0.4.14"
+pollster = "0.2.4"
+pretty_env_logger = "0.4.0"
+raw-window-handle = "0.3.3"
+wgpu = "0.10.1"
+winit = "0.25.0"
+guise = { path = "../guise", features = ["bytemuck", "log", "font_proggy_clean"] }

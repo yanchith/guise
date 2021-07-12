@@ -1,6 +1,6 @@
-[package]
-name = "yuice"
-version = "0.1.0"
-edition = "2018"
-
-[dependencies]
+[workspace]
+resolver = "2"
+members = [
+    "guise",
+    "guise_example_winit_wgpu",
+]
