@@ -21,7 +21,19 @@ pub trait EditableText: Deref<Target = str> + DerefMut<Target = str> {
     }
 }
 
-pub fn text_input<T>(frame: &mut Frame, id: u32, theme: &Theme, text: &mut T) -> bool
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TextInputSubmit {
+    None,
+    Submit,
+    Cancel,
+}
+
+pub fn text_input<T>(
+    frame: &mut Frame,
+    id: u32,
+    theme: &Theme,
+    text: &mut T,
+) -> (bool, TextInputSubmit)
 where
     T: EditableText,
 {
@@ -42,7 +54,7 @@ where
         Self { id, theme, text }
     }
 
-    pub fn show(&mut self, frame: &mut Frame) -> bool {
+    pub fn show(&mut self, frame: &mut Frame) -> (bool, TextInputSubmit) {
         let inputs_pressed = frame.window_inputs_pressed();
         let received_characters: ArrayString<32> =
             ArrayString::from(frame.window_received_characters()).unwrap();
@@ -63,19 +75,23 @@ where
         let hovered = ctrl.hovered();
         let active = ctrl.active();
 
-        let (active, changed) =
+        let (active, changed, submit) =
             if active && (!received_characters.is_empty() || inputs_pressed != Inputs::NONE) {
                 if inputs_pressed != Inputs::NONE {
                     match inputs_pressed {
                         Inputs::KEYBOARD_BACKSPACE => {
                             self.text.pop();
-                            (true, true)
+                            (true, true, TextInputSubmit::None)
                         }
-                        Inputs::KEYBOARD_ENTER | Inputs::KEYBOARD_ESCAPE => {
+                        Inputs::KEYBOARD_ENTER => {
                             ctrl.set_active(false);
-                            (false, false)
+                            (false, false, TextInputSubmit::Submit)
                         }
-                        _ => (true, false),
+                        Inputs::KEYBOARD_ESCAPE => {
+                            ctrl.set_active(false);
+                            (false, false, TextInputSubmit::Cancel)
+                        }
+                        _ => (true, false, TextInputSubmit::None),
                     }
                 } else {
                     // TODO(yan): This likely won't be robust enough for
@@ -86,13 +102,13 @@ where
                         self.text.push(c);
                     }
 
-                    (true, true)
+                    (true, true, TextInputSubmit::None)
                 }
             } else if hovered && inputs_pressed == Inputs::MOUSE_BUTTON_LEFT {
                 ctrl.set_active(true);
-                (true, false)
+                (true, false, TextInputSubmit::None)
             } else {
-                (active, false)
+                (active, false, TextInputSubmit::None)
             };
 
         let (text_color, background_color, border_color) = match (hovered, active) {
@@ -127,7 +143,7 @@ where
 
         frame.pop_ctrl();
 
-        changed
+        (changed, submit)
     }
 }
 

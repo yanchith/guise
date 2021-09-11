@@ -31,6 +31,8 @@ pub const GRAPH_LEN: usize = 60;
 
 pub struct State {
     pub button_click_count: u64,
+    pub text_input_submit_count: u64,
+    pub text_input_cancel_count: u64,
     pub graph: [f32; GRAPH_LEN],
     pub graph_max: f32,
     pub graph_frame_build: [f32; GRAPH_LEN],
@@ -90,7 +92,13 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                 ) {
                     ctrl.draw_text(
                         true,
-                        fmt!(s, "Button click count {}", state.button_click_count),
+                        fmt!(
+                            s,
+                            "Button click count {}\nText Input submit count {}\nText Input cancel count {}",
+                            state.button_click_count,
+                            state.text_input_submit_count,
+                            state.text_input_cancel_count,
+                        ),
                         guise::Align::Start,
                         guise::Align::Center,
                         guise::Wrap::Word,
@@ -443,8 +451,20 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
     )
     .is_some()
     {
-        guise::text_input(frame, line!(), theme, &mut state.text_input_text_heap);
-        guise::text_input(frame, line!(), theme, &mut state.text_input_text_inline);
+        let (_, s1) = guise::text_input(frame, line!(), theme, &mut state.text_input_text_heap);
+        match s1 {
+            guise::TextInputSubmit::None => (),
+            guise::TextInputSubmit::Submit => state.text_input_submit_count += 1,
+            guise::TextInputSubmit::Cancel => state.text_input_cancel_count += 1,
+        }
+
+        let (_, s2) = guise::text_input(frame, line!(), theme, &mut state.text_input_text_inline);
+        match s2 {
+            guise::TextInputSubmit::None => (),
+            guise::TextInputSubmit::Submit => state.text_input_submit_count += 1,
+            guise::TextInputSubmit::Cancel => state.text_input_cancel_count += 1,
+        }
+
         if guise::button(frame, line!(), theme, "Clear") {
             state.text_input_text_heap.clear();
             state.text_input_text_inline.clear();

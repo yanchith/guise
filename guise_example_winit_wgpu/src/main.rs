@@ -83,6 +83,8 @@ fn main() {
 
     let mut state = demo::State {
         button_click_count: 0,
+        text_input_submit_count: 0,
+        text_input_cancel_count: 0,
         graph: [0.0; demo::GRAPH_LEN],
         graph_max: 0.0,
         graph_frame_build: [0.0; demo::GRAPH_LEN],
