@@ -1413,6 +1413,7 @@ impl Ctrl<'_> {
     pub fn draw_text(
         &mut self,
         extend_content_rect: bool,
+        position: Vec2,
         text: &str,
         horizontal_align: Align,
         vertical_align: Align,
@@ -1426,8 +1427,8 @@ impl Ctrl<'_> {
         assert!(parent.draw_range.end == next_draw_command_idx);
 
         let available_rect = parent.rect.inset(parent.border).inset(parent.padding);
-        let available_width = available_rect.width();
-        let available_height = available_rect.height();
+        let available_width = (available_rect.width() - position.x).max(0.0);
+        let available_height = (available_rect.height() - position.y).max(0.0);
 
         // If we are expected to wrap text, but there's not enough space to
         // render a missing character, don't attempt anything.
@@ -1618,20 +1619,20 @@ impl Ctrl<'_> {
 
         let mut position_y = if lines.len() as f32 * line_metrics.new_line_size < available_height {
             match vertical_align {
-                Align::Start => 0.0,
+                Align::Start => position.y,
                 Align::Center => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    (available_height - text_block_size) / 2.0
+                    position.y + (available_height - text_block_size) / 2.0
                 }
                 Align::End => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    available_height - text_block_size
+                    position.y + available_height - text_block_size
                 }
             }
         } else {
@@ -1642,9 +1643,9 @@ impl Ctrl<'_> {
             let line_slice = &text[line.range.clone()];
 
             let mut position_x = match horizontal_align {
-                Align::Start => 0.0,
-                Align::Center => (available_width - line.width) / 2.0,
-                Align::End => available_width - line.width,
+                Align::Start => position.x,
+                Align::Center => position.x + (available_width - line.width) / 2.0,
+                Align::End => position.x + available_width - line.width,
             };
 
             for c in line_slice.chars() {

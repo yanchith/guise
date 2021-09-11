@@ -1,24 +1,26 @@
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn button(frame: &mut Frame, id: u32, theme: &Theme, label: &str) -> bool {
-    Button::new(id, theme, label).show(frame)
+pub fn checkbox(frame: &mut Frame, id: u32, theme: &Theme, value: &mut bool, label: &str) -> bool {
+    Checkbox::new(id, theme, value, label).show(frame)
 }
 
-pub struct Button<'a> {
+pub struct Checkbox<'a> {
     id: u32,
     theme: &'a Theme,
+    value: &'a mut bool,
     label: &'a str,
 
     x: f32,
     y: f32,
 }
 
-impl<'a> Button<'a> {
-    pub fn new(id: u32, theme: &'a Theme, label: &'a str) -> Self {
+impl<'a> Checkbox<'a> {
+    pub fn new(id: u32, theme: &'a Theme, value: &'a mut bool, label: &'a str) -> Self {
         Self {
             id,
             theme,
+            value,
             label,
 
             x: 0.0,
@@ -26,7 +28,7 @@ impl<'a> Button<'a> {
         }
     }
 
-    pub fn show(&self, frame: &mut Frame) -> bool {
+    pub fn show(&mut self, frame: &mut Frame) -> bool {
         let lmb_pressed = frame.window_inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
         let lmb_released = frame.window_inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
 
@@ -36,12 +38,12 @@ impl<'a> Button<'a> {
         ctrl.set_rect(Rect::new(
             self.x,
             self.y,
-            self.theme.button_width,
-            self.theme.button_height,
+            self.theme.checkbox_width,
+            self.theme.checkbox_height,
         ));
         ctrl.set_padding(0.0);
-        ctrl.set_border(self.theme.button_border);
-        ctrl.set_margin(self.theme.button_margin);
+        ctrl.set_border(self.theme.checkbox_border);
+        ctrl.set_margin(self.theme.checkbox_margin);
 
         let hovered = ctrl.hovered();
         let active = ctrl.active();
@@ -52,6 +54,7 @@ impl<'a> Button<'a> {
                 // Make the control inactive once again after release, as the
                 // platform may not be running us on every frame, but only for
                 // new events. Also better latency this way.
+                *self.value = !*self.value;
                 (false, true)
             } else {
                 (false, false)
@@ -63,32 +66,45 @@ impl<'a> Button<'a> {
             (active, false)
         };
 
-        let (text_color, background_color, border_color) = match (hovered, active) {
+        let (handle_color, text_color) = match (hovered, active) {
             (false, false) => (
-                self.theme.button_text_color,
-                self.theme.button_background_color,
-                self.theme.button_border_color,
+                self.theme.checkbox_handle_color,
+                self.theme.checkbox_text_color,
             ),
             (true, false) => (
-                self.theme.button_text_color_hovered,
-                self.theme.button_background_color_hovered,
-                self.theme.button_border_color_hovered,
+                self.theme.checkbox_handle_color_hovered,
+                self.theme.checkbox_text_color_hovered,
             ),
             (_, true) => (
-                self.theme.button_text_color_active,
-                self.theme.button_background_color_active,
-                self.theme.button_border_color_active,
+                self.theme.checkbox_handle_color_active,
+                self.theme.checkbox_text_color_active,
             ),
         };
 
-        ctrl.set_draw_self(true);
-        ctrl.set_draw_self_border_color(border_color);
-        ctrl.set_draw_self_background_color(background_color);
+        ctrl.set_draw_self(false);
+        ctrl.draw_rect(
+            false,
+            Rect::new(5.0, 7.5, 20.0, 20.0),
+            Rect::ZERO,
+            handle_color,
+            0,
+        );
+
+        if *self.value {
+            ctrl.draw_rect(
+                false,
+                Rect::new(10.0, 12.5, 10.0, 10.0),
+                Rect::ZERO,
+                0xffffffff,
+                0,
+            );
+        }
+
         ctrl.draw_text(
             false,
-            Vec2::ZERO,
+            Vec2::new(40.0, 0.0),
             self.label,
-            Align::Center,
+            Align::Start,
             Align::Center,
             Wrap::Word,
             text_color,

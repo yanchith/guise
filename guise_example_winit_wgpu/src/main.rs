@@ -85,6 +85,7 @@ fn main() {
         button_click_count: 0,
         text_input_submit_count: 0,
         text_input_cancel_count: 0,
+        poll_platform_events: true,
         graph: [0.0; demo::GRAPH_LEN],
         graph_max: 0.0,
         graph_frame_build: [0.0; demo::GRAPH_LEN],
@@ -108,7 +109,11 @@ fn main() {
     let mut frame_ctrl_count = 0;
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = winit::event_loop::ControlFlow::Wait;
+        *control_flow = if state.poll_platform_events {
+            winit::event_loop::ControlFlow::Poll
+        } else {
+            winit::event_loop::ControlFlow::Wait
+        };
 
         match event {
             winit::event::Event::NewEvents(start_cause) => {

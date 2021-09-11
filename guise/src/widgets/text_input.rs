@@ -1,6 +1,6 @@
 use core::ops::{Deref, DerefMut};
 
-use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
+use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
 use crate::widgets::theme::Theme;
 
 use arrayvec::ArrayString;
@@ -134,6 +134,7 @@ where
         ctrl.set_draw_self_background_color(background_color);
         ctrl.draw_text(
             true,
+            Vec2::ZERO,
             self.text,
             Align::Start,
             Align::Center,

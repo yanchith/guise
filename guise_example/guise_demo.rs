@@ -33,6 +33,7 @@ pub struct State {
     pub button_click_count: u64,
     pub text_input_submit_count: u64,
     pub text_input_cancel_count: u64,
+    pub poll_platform_events: bool,
     pub graph: [f32; GRAPH_LEN],
     pub graph_max: f32,
     pub graph_frame_build: [f32; GRAPH_LEN],
@@ -82,16 +83,35 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
             )
             .is_some()
             {
+                if guise::begin_panel(
+                    frame,
+                    line!(),
+                    theme,
+                    guise::Layout::Vertical,
+                    "100%",
+                    "15%",
+                ).is_some() {
+                    guise::checkbox(
+                        frame,
+                        line!(),
+                        theme,
+                        &mut state.poll_platform_events,
+                        "Poll Platform Events",
+                    );
+
+                    guise::end_panel(frame);
+                }
                 if let Some(mut ctrl) = guise::begin_panel(
                     frame,
                     line!(),
                     theme,
                     guise::Layout::Vertical,
                     "100%",
-                    "50%",
+                    "35%",
                 ) {
                     ctrl.draw_text(
                         true,
+                        guise::Vec2::ZERO,
                         fmt!(
                             s,
                             "Button click count {}\nText Input submit count {}\nText Input cancel count {}",
@@ -118,6 +138,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                 ) {
                     ctrl.draw_text(
                         true,
+                        guise::Vec2::ZERO,
                         fmt!(
                             s,
                             "running time: {:.3}s\nframe count:  {}\nframe build time: {:.3}/{:.3}s (current/max)\nframe total time: {:.3}s\nframe ctrl count: {}",
@@ -201,6 +222,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     {
                         ctrl.draw_text(
                             true,
+                            guise::Vec2::ZERO,
                             TEXT,
                             guise::Align::Start,
                             guise::Align::Center,
@@ -215,6 +237,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     {
                         ctrl.draw_text(
                             true,
+                            guise::Vec2::ZERO,
                             TEXT,
                             guise::Align::Center,
                             guise::Align::Center,
@@ -229,6 +252,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     {
                         ctrl.draw_text(
                             true,
+                            guise::Vec2::ZERO,
                             TEXT,
                             guise::Align::End,
                             guise::Align::Center,
@@ -387,6 +411,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
         ) {
             ctrl.draw_text(
                 false,
+                guise::Vec2::ZERO,
                 "Hello",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -407,6 +432,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
         ) {
             ctrl.draw_text(
                 false,
+                guise::Vec2::ZERO,
                 "Traveller",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -427,6 +453,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
         ) {
             ctrl.draw_text(
                 false,
+                guise::Vec2::ZERO,
                 "「こんにちは 世界」",
                 guise::Align::Center,
                 guise::Align::Center,
