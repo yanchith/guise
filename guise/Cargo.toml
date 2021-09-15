@@ -19,7 +19,7 @@ font_roboto = []
 default = []
 
 [dependencies]
-arrayvec = "0.7.1"
+arrayvec = { version = "0.7.1", default-features = false }
 bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
 fontdue = "0.5.2"
 hashbrown = "0.11.2"

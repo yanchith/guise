@@ -381,10 +381,15 @@ impl FontAtlas {
             grid_x: 0,
             grid_y: 0,
             metrics: fontdue::Metrics {
-                xmin: (horizontal_padding / 2.0).round() as i32,
-                ymin: (vertical_padding / 2.0).round() as i32,
-                width: width.round() as usize,
-                height: height.round() as usize,
+                // TODO(yan): @Correctness xmin, ymin, width, and height used to
+                // f32::round, but that was an accidental dependency on std. `as
+                // i32` and `as usize` truncate towards zero, which is less
+                // correct. If we keep this code, let's add our own portable
+                // roundf function.
+                xmin: (horizontal_padding / 2.0) as i32,
+                ymin: (vertical_padding / 2.0) as i32,
+                width: width as usize,
+                height: height as usize,
                 advance_width,
                 advance_height,
                 bounds: fontdue::OutlineBounds {

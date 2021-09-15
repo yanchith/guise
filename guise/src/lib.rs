@@ -17,3 +17,9 @@ mod widgets;
 
 pub use crate::core::*;
 pub use crate::widgets::*;
+
+// This should not compile if this crate doesn't accidentally depend on std.
+//
+// fn no_std_compile_test() {
+//     f32::sin(1.0);
+// }
