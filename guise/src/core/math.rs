@@ -186,6 +186,8 @@ impl Rect {
         height: 0.0,
     };
 
+    // TODO(yan): This name is unfortunate. A unit rect would be centered at
+    // origin and have sides of length 2. Consider Rect::ONE?
     pub const UNIT: Self = Self {
         x: 0.0,
         y: 0.0,
