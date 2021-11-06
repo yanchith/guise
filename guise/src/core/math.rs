@@ -170,6 +170,7 @@ impl Display for Vec2 {
     }
 }
 
+// TODO(yan): impl Deref for Rect, type Target=RectDeref.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Rect {
     x: f32,
