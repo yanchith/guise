@@ -1,7 +1,5 @@
 use core::fmt::{self, Display};
-use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
-
-// TODO(yan): Consider Deref instead of field getters
+use core::ops::{Add, AddAssign, Deref, Div, DivAssign, Mul, MulAssign, Sub, SubAssign};
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
@@ -170,8 +168,9 @@ impl Display for Vec2 {
     }
 }
 
-// TODO(yan): impl Deref for Rect, type Target=RectDeref.
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(bytemuck::Zeroable, bytemuck::Pod)]
 pub struct Rect {
     x: f32,
     y: f32,
@@ -187,9 +186,7 @@ impl Rect {
         height: 0.0,
     };
 
-    // TODO(yan): This name is unfortunate. A unit rect would be centered at
-    // origin and have sides of length 2. Consider Rect::ONE?
-    pub const UNIT: Self = Self {
+    pub const ONE: Self = Self {
         x: 0.0,
         y: 0.0,
         width: 1.0,
@@ -211,39 +208,39 @@ impl Rect {
     pub fn from_points(point_a: Vec2, point_b: Vec2) -> Self {
         let min_point = point_a.min(point_b);
         let max_point = point_a.max(point_b);
-        let extents = max_point - min_point;
+        let size = max_point - min_point;
 
         Self {
             x: min_point.x,
             y: min_point.y,
-            width: extents.x,
-            height: extents.y,
+            width: size.x,
+            height: size.y,
         }
     }
 
     pub fn extend_by_point(&self, point: Vec2) -> Self {
         let min_point = self.min_point().min(point);
         let max_point = self.max_point().max(point);
-        let extents = max_point - min_point;
+        let size = max_point - min_point;
 
         Self {
             x: min_point.x,
             y: min_point.y,
-            width: extents.x,
-            height: extents.y,
+            width: size.x,
+            height: size.y,
         }
     }
 
     pub fn extend_by_rect(&self, rect: Self) -> Self {
         let min_point = self.min_point().min(rect.min_point());
         let max_point = self.max_point().max(rect.max_point());
-        let extents = max_point - min_point;
+        let size = max_point - min_point;
 
         Self {
             x: min_point.x,
             y: min_point.y,
-            width: extents.x,
-            height: extents.y,
+            width: size.x,
+            height: size.y,
         }
     }
 
@@ -316,22 +313,6 @@ impl Rect {
         intersects_x && intersects_y
     }
 
-    pub fn x(&self) -> f32 {
-        self.x
-    }
-
-    pub fn y(&self) -> f32 {
-        self.y
-    }
-
-    pub fn width(&self) -> f32 {
-        self.width
-    }
-
-    pub fn height(&self) -> f32 {
-        self.height
-    }
-
     pub fn max_x(&self) -> f32 {
         self.x + self.width
     }
@@ -348,7 +329,7 @@ impl Rect {
         Vec2::new(self.x + self.width, self.y + self.height)
     }
 
-    pub fn extents(&self) -> Vec2 {
+    pub fn size(&self) -> Vec2 {
         Vec2::new(self.width, self.height)
     }
 }
@@ -357,7 +338,25 @@ impl Add<Vec2> for Rect {
     type Output = Self;
 
     fn add(self, other: Vec2) -> Self {
-        Self::new(self.x + other.x, self.y + other.y, self.width, self.height)
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+            width: self.width,
+            height: self.height,
+        }
+    }
+}
+
+impl Add<f32> for Rect {
+    type Output = Self;
+
+    fn add(self, other: f32) -> Self {
+        Self {
+            x: self.x + other,
+            y: self.y + other,
+            width: self.width,
+            height: self.height,
+        }
     }
 }
 
@@ -365,7 +364,25 @@ impl Sub<Vec2> for Rect {
     type Output = Self;
 
     fn sub(self, other: Vec2) -> Self {
-        Self::new(self.x - other.x, self.y - other.y, self.width, self.height)
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+            width: self.width,
+            height: self.height,
+        }
+    }
+}
+
+impl Sub<f32> for Rect {
+    type Output = Self;
+
+    fn sub(self, other: f32) -> Self {
+        Self {
+            x: self.x - other,
+            y: self.y - other,
+            width: self.width,
+            height: self.height,
+        }
     }
 }
 
@@ -376,6 +393,24 @@ impl Display for Rect {
             "Rect {{ x: {}, y: {}, width: {}, height: {} }}",
             self.x, self.y, self.width, self.height,
         )
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(bytemuck::Zeroable, bytemuck::Pod)]
+pub struct RectDeref {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl Deref for Rect {
+    type Target = RectDeref;
+
+    fn deref(&self) -> &Self::Target {
+        bytemuck::cast_ref(self)
     }
 }
 
@@ -484,7 +519,7 @@ mod tests {
         let outer = Rect::new(10.0, 10.0, 100.0, 100.0);
         let inner = Rect::new(20.0, 20.0, 50.0, 50.0);
 
-        assert_eq!(outer.clamp_rect(inner), inner);
+        assert!(outer.clamp_rect(inner) == inner);
     }
 
     #[test]
@@ -492,7 +527,7 @@ mod tests {
         let outer = Rect::new(10.0, 10.0, 100.0, 100.0);
         let inner = Rect::new(0.0, 0.0, 100.0, 100.0);
 
-        assert_eq!(outer.clamp_rect(inner), Rect::new(10.0, 10.0, 90.0, 90.0));
+        assert!(outer.clamp_rect(inner) == Rect::new(10.0, 10.0, 90.0, 90.0));
     }
 
     #[test]
@@ -500,7 +535,7 @@ mod tests {
         let outer = Rect::new(10.0, 10.0, 100.0, 100.0);
         let inner = Rect::new(20.0, 20.0, 100.0, 100.0);
 
-        assert_eq!(outer.clamp_rect(inner), Rect::new(20.0, 20.0, 90.0, 90.0));
+        assert!(outer.clamp_rect(inner) == Rect::new(20.0, 20.0, 90.0, 90.0));
     }
 
     #[test]
@@ -508,6 +543,6 @@ mod tests {
         let outer = Rect::new(10.0, 10.0, 100.0, 100.0);
         let inner = Rect::new(-50.0, -50.0, 20.0, 20.0);
 
-        assert_eq!(outer.clamp_rect(inner), Rect::new(10.0, 10.0, 0.0, 0.0));
+        assert!(outer.clamp_rect(inner) == Rect::new(10.0, 10.0, 0.0, 0.0));
     }
 }

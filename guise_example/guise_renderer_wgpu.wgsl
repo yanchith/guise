@@ -1,5 +1,9 @@
-[[block]]
-struct Transform {
+// TODO(yan): @Cleanup This shader is currently not used, both because WGSL spec
+// changes every day and I got tired keeping up with it. Currently, the wgpu
+// backend uses GLSL shaders (in this directory), translated to SPIRV via
+// shaderc.
+
+struct TransformUniforms {
     matrix: mat4x4<f32>;
 };
 
@@ -9,15 +13,15 @@ struct VertexOutput {
     [[location(1)]]       color:     vec4<f32>;
 };
 
-[[group(0), binding(0)]] var u_transform: Transform;
-[[group(1), binding(0)]] var u_texture:   texture_2d<f32>;
-[[group(1), binding(1)]] var u_sampler:   sampler;
+[[group(0), binding(0)]] var<uniform> u_transform: TransformUniforms;
+[[group(1), binding(0)]] var<uniform> u_texture:   texture_2d<f32>;
+[[group(1), binding(1)]] var<uniform> u_sampler:   sampler;
 
 [[stage(vertex)]]
 fn vs_main(
-    [[location(0)]] position:  vec2<f32>,
-    [[location(1)]] tex_coord: vec2<f32>,
-    [[location(2)]] color:     u32,
+    [[location(0)]] in_position:  vec2<f32>,
+    [[location(1)]] in_tex_coord: vec2<f32>,
+    [[location(2)]] in_color:     u32,
 ) -> VertexOutput {
     var out: VertexOutput;
 
@@ -25,13 +29,13 @@ fn vs_main(
     // specify those in naga 0.6.0 and wgpu 0.10.1.
     let mask: u32 = 255u; // 0xff;
 
-    out.position  = u_transform.matrix * vec4<f32>(position, 0.0, 1.0);
-    out.tex_coord = tex_coord;
+    out.position  = u_transform.matrix * vec4<f32>(in_position, 0.0, 1.0);
+    out.tex_coord = in_tex_coord;
     out.color     = vec4<f32>(
-        f32((color >> 24u) & mask) / 255.0,
-        f32((color >> 16u) & mask) / 255.0,
-        f32((color >> 8u)  & mask) / 255.0,
-        f32((color >> 0u)  & mask) / 255.0,
+        f32((in_color >> 24u) & mask) / 255.0,
+        f32((in_color >> 16u) & mask) / 255.0,
+        f32((in_color >> 8u)  & mask) / 255.0,
+        f32((in_color >> 0u)  & mask) / 255.0,
     );
 
     return out;

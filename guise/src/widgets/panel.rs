@@ -1,60 +1,65 @@
-use core::convert::TryInto;
+use core::alloc::Allocator;
 use core::fmt::Debug;
 
 use crate::core::{Ctrl, CtrlFlags, Frame, Layout, Rect};
 use crate::widgets::size::Size;
 use crate::widgets::theme::Theme;
 
-pub fn begin_panel<'f, W, H>(
-    frame: &'f mut Frame,
+pub fn begin_panel<'f, W, H, A, TA>(
+    frame: &'f mut Frame<A, TA>,
     id: u32,
     width: W,
     height: H,
-) -> Ctrl<'f>
+) -> Ctrl<'f, A, TA>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+    TA: Allocator,
 {
-    let theme = &Theme::DEFAULT;
-    let layout = Layout::Vertical;
-    Panel::new(id, theme, layout, width, height).begin(frame)
+    Panel::new(id, Layout::Vertical, width, height).begin(frame)
 }
 
-pub fn begin_panel_ex<'f, W, H>(
-    frame: &'f mut Frame,
+pub fn begin_panel_ex<'f, W, H, A, TA>(
+    frame: &'f mut Frame<A, TA>,
     id: u32,
     width: W,
     height: H,
     layout: Layout,
-) -> Ctrl<'f>
+) -> Ctrl<'f, A, TA>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+    TA: Allocator,
 {
-    let theme = &Theme::DEFAULT;
-    Panel::new(id, theme, layout, width, height).begin(frame)
+    Panel::new(id, layout, width, height).begin(frame)
 }
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
-pub fn end_panel(frame: &mut Frame) {
+pub fn end_panel<A, TA>(frame: &mut Frame<A, TA>)
+where
+    A: Allocator + Clone,
+    TA: Allocator,
+{
     frame.pop_ctrl();
 }
 
 pub struct Panel<'a> {
     id: u32,
-    theme: &'a Theme,
     layout: Layout,
 
+    theme: &'a Theme,
     width: Size,
     height: Size,
 }
 
 impl<'a> Panel<'a> {
-    pub fn new<W, H>(id: u32, theme: &'a Theme, layout: Layout, width: W, height: H) -> Self
+    pub fn new<W, H>(id: u32, layout: Layout, width: W, height: H) -> Self
     where
         W: TryInto<Size>,
         H: TryInto<Size>,
@@ -66,16 +71,25 @@ impl<'a> Panel<'a> {
 
         Self {
             id,
-            theme,
             layout,
 
+            theme: &Theme::DEFAULT,
             width,
             height,
         }
     }
 
-    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Ctrl<'f> {
-        let parent_extents = frame.ctrl_inner_extents();
+    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn begin<'f, A, TA>(&self, frame: &'f mut Frame<A, TA>) -> Ctrl<'f, A, TA>
+    where
+        A: Allocator + Clone,
+        TA: Allocator,
+    {
+        let parent_size = frame.ctrl_inner_size();
 
         let mut ctrl = frame.push_ctrl(self.id);
         ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL);
@@ -83,8 +97,8 @@ impl<'a> Panel<'a> {
         ctrl.set_rect(Rect::new(
             0.0,
             0.0,
-            self.width.resolve(parent_extents.x),
-            self.height.resolve(parent_extents.y),
+            self.width.resolve(parent_size.x),
+            self.height.resolve(parent_size.y),
         ));
         ctrl.set_padding(self.theme.panel_padding);
         ctrl.set_border(self.theme.panel_border);
@@ -97,7 +111,11 @@ impl<'a> Panel<'a> {
         ctrl
     }
 
-    pub fn end(&self, frame: &mut Frame) {
+    pub fn end<A, TA>(&self, frame: &mut Frame<A, TA>)
+    where
+        A: Allocator + Clone,
+        TA: Allocator,
+    {
         frame.pop_ctrl();
     }
 }

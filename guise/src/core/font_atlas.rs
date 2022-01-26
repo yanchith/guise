@@ -1,10 +1,10 @@
-use core::char;
-use core::ops::RangeInclusive;
-
 use alloc::vec;
 use alloc::vec::Vec;
+use core::alloc::Allocator;
+use core::char;
+use core::ops::{BitOr, BitOrAssign, RangeInclusive};
 
-use hashbrown::hash_map::{Entry, HashMap};
+use hashbrown::hash_map::{DefaultHashBuilder, Entry, HashMap};
 
 use crate::convert::{cast_u16, cast_u32, cast_usize};
 
@@ -35,21 +35,17 @@ impl UnicodeRangeFlags {
     pub const KATAKANA: Self = Self(0x40);
     pub const CJK_UNIFIED_IDEOGRAPHS: Self = Self(0x80);
 
-    pub const ALL_LATIN: Self = Self(
-        Self::BASIC_LATIN.0
-            | Self::LATIN_1_SUPPLEMENT.0
-            | Self::LATIN_EXTENDED_A.0
-            | Self::LATIN_EXTENDED_B.0,
-    );
+    pub const ALL_LATIN: Self = Self::BASIC_LATIN
+        | Self::LATIN_1_SUPPLEMENT
+        | Self::LATIN_EXTENDED_A
+        | Self::LATIN_EXTENDED_B;
 
-    pub const ALL_JAPANESE: Self = Self(
-        Self::CJK_SYMBOLS_AND_PUNCTUATION.0
-            | Self::HIRAGANA.0
-            | Self::KATAKANA.0
-            | Self::CJK_UNIFIED_IDEOGRAPHS.0,
-    );
+    pub const ALL_JAPANESE: Self = Self::CJK_SYMBOLS_AND_PUNCTUATION
+        | Self::HIRAGANA
+        | Self::KATAKANA
+        | Self::CJK_UNIFIED_IDEOGRAPHS;
 
-    pub const ALL: Self = Self(Self::ALL_LATIN.0 | Self::ALL_JAPANESE.0);
+    pub const ALL: Self = Self::ALL_LATIN | Self::ALL_JAPANESE;
 
     const R_BASIC_LATIN: RangeInclusive<u32> = 0x00..=0x7f;
     const R_LATIN_1_SUPPLEMENT: RangeInclusive<u32> = 0x80..=0xff;
@@ -125,6 +121,20 @@ impl UnicodeRangeFlags {
     }
 }
 
+impl const BitOr for UnicodeRangeFlags {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+impl BitOrAssign for UnicodeRangeFlags {
+    fn bitor_assign(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+}
+
 pub struct CodepointRangesIter {
     next: usize,
     flags: UnicodeRangeFlags,
@@ -175,7 +185,8 @@ pub struct GlyphInfo {
     pub metrics: fontdue::Metrics,
 }
 
-pub struct FontAtlas {
+// TODO(yan): Allocate everything in provided allocator.
+pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
     font_horizontal_line_metrics: fontdue::LineMetrics,
     max_glyph_width: u16,
@@ -183,17 +194,19 @@ pub struct FontAtlas {
     image: Vec<u8>,
     image_width: u16,
     image_height: u16,
-    glyph_index_to_info: HashMap<usize, GlyphInfo>,
+    glyph_index_to_info: HashMap<usize, GlyphInfo, DefaultHashBuilder, A>,
     grid_cell_width: u16,
     grid_cell_height: u16,
 }
 
-impl FontAtlas {
-    pub fn new(
+impl<A: Allocator + Clone> FontAtlas<A> {
+    pub fn new_in<TA: Allocator>(
         font_bytes: &[u8],
         unicode_range_flags: UnicodeRangeFlags,
         font_size: f32,
-    ) -> FontAtlas {
+        perm_allocator: A,
+        temp_allocator: &TA,
+    ) -> FontAtlas<A> {
         let settings = fontdue::FontSettings {
             collection_index: 0,
             // Scale controls the threshold of subdividing a line segment. A
@@ -212,7 +225,8 @@ impl FontAtlas {
 
         let mut max_glyph_width: u16 = 0;
         let mut max_glyph_height: u16 = 0;
-        let mut glyph_index_to_rasterized = HashMap::with_capacity(cast_usize(codepoint_count));
+        let mut glyph_index_to_rasterized =
+            HashMap::with_capacity_in(cast_usize(codepoint_count), temp_allocator);
 
         for c in unicode_range_flags
             .codepoint_ranges_iter()
@@ -272,7 +286,8 @@ impl FontAtlas {
             }
         }
 
-        let mut glyph_index_to_info = HashMap::with_capacity(cast_usize(codepoint_count));
+        let mut glyph_index_to_info =
+            HashMap::with_capacity_in(cast_usize(codepoint_count), perm_allocator);
 
         let mut cell_index = 1;
         for c in unicode_range_flags
@@ -336,11 +351,11 @@ impl FontAtlas {
         }
     }
 
-    pub fn grid_cell_extents(&self) -> (u16, u16) {
+    pub fn grid_cell_size(&self) -> (u16, u16) {
         (self.grid_cell_width, self.grid_cell_height)
     }
 
-    pub fn image_extents(&self) -> (u16, u16) {
+    pub fn image_size(&self) -> (u16, u16) {
         (self.image_width, self.image_height)
     }
 

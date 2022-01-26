@@ -1,7 +1,7 @@
 [package]
 name = "guise_example_winit_wgpu"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 authors = ["yanchith <yanchi.toth@gmail.com>"]
 keywords = ["gui", "graphics"]
@@ -12,12 +12,13 @@ repository = "https://github.com/virtual-sunset/guise"
 license = "MIT"
 
 [dependencies]
-arrayvec = "0.7.1"
-bytemuck = { version = "1.7.2", features = ["derive"] }
+arrayvec = "0.7.2"
+bytemuck = { version = "1.7.3", features = ["derive"] }
+guise = { path = "../guise", features = ["log", "font_proggy_clean"] }
 log = "0.4.14"
-pollster = "0.2.4"
+pollster = "0.2.5"
 pretty_env_logger = "0.4.0"
-raw-window-handle = "0.3.3"
-wgpu = "0.10.1"
-winit = "0.25.0"
-guise = { path = "../guise", features = ["bytemuck", "log", "font_proggy_clean"] }
+raw-window-handle = "0.4.2"
+vk-shader-macros = "0.2.7"
+wgpu = { version = "0.12.0", features = ["spirv"] }
+winit = "0.26.1"

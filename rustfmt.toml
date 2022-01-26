@@ -1,0 +1,8 @@
+format_strings = true
+group_imports = "StdExternalCrate"
+hex_literal_case = "Lower"
+imports_layout = "HorizontalVertical"
+merge_derives = false
+newline_style = "Unix"
+overflow_delimited_expr = true
+use_field_init_shorthand = true

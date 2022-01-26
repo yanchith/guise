@@ -1,7 +1,7 @@
 [package]
 name = "guise"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 authors = ["yanchith <yanchi.toth@gmail.com>"]
 keywords = ["gui", "graphics"]
@@ -19,10 +19,11 @@ font_roboto = []
 default = []
 
 [dependencies]
-arrayvec = { version = "0.7.1", default-features = false }
-bytemuck = { version = "1.7.2", optional = true, features = ["derive"] }
+arrayvec = { version = "0.7.2", default-features = false }
+bytemuck = { version = "1.7.3", features = ["derive"] }
 fontdue = "0.5.2"
-hashbrown = "0.11.2"
+hashbrown = { version = "0.12.0", features = ["nightly"] }
+libm = "0.2.2"
 log = { version = "0.4.14", optional = true }
 
 [dev-dependencies]

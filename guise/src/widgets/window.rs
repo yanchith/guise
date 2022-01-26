@@ -1,4 +1,4 @@
-use core::convert::TryInto;
+use core::alloc::Allocator;
 use core::fmt::Debug;
 
 use crate::core::{Ctrl, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Vec2};
@@ -10,14 +10,14 @@ const ACTIVITY_MOVE: u8 = 1;
 const ACTIVITY_RESIZE: u8 = 2;
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
-pub fn begin_window<'f, X, Y, W, H>(
-    frame: &'f mut Frame,
+pub fn begin_window<'f, X, Y, W, H, A, TA>(
+    frame: &'f mut Frame<A, TA>,
     id: u32,
     x: X,
     y: Y,
     width: W,
     height: H,
-) -> Ctrl<'f>
+) -> Ctrl<'f, A, TA>
 where
     X: TryInto<Size>,
     Y: TryInto<Size>,
@@ -27,21 +27,21 @@ where
     <Y as TryInto<Size>>::Error: Debug,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+    TA: Allocator,
 {
-    let theme = &Theme::DEFAULT;
-    let layout = Layout::Vertical;
-    Window::new(id, theme, layout, x, y, width, height).begin(frame)
+    Window::new(id, Layout::Vertical, x, y, width, height).begin(frame)
 }
 
-pub fn begin_window_ex<'f, X, Y, W, H>(
-    frame: &'f mut Frame,
+pub fn begin_window_ex<'f, X, Y, W, H, A, TA>(
+    frame: &'f mut Frame<A, TA>,
     id: u32,
     x: X,
     y: Y,
     width: W,
     height: H,
     layout: Layout,
-) -> Ctrl<'f>
+) -> Ctrl<'f, A, TA>
 where
     X: TryInto<Size>,
     Y: TryInto<Size>,
@@ -51,20 +51,25 @@ where
     <Y as TryInto<Size>>::Error: Debug,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+    TA: Allocator,
 {
-    let theme = &Theme::DEFAULT;
-    Window::new(id, theme, layout, x, y, width, height).begin(frame)
+    Window::new(id, layout, x, y, width, height).begin(frame)
 }
 
-pub fn end_window(frame: &mut Frame) {
+pub fn end_window<A, TA>(frame: &mut Frame<A, TA>)
+where
+    A: Allocator + Clone,
+    TA: Allocator,
+{
     frame.pop_ctrl();
 }
 
 pub struct Window<'a> {
     id: u32,
-    theme: &'a Theme,
     layout: Layout,
 
+    theme: &'a Theme,
     x: Size,
     y: Size,
     width: Size,
@@ -72,15 +77,7 @@ pub struct Window<'a> {
 }
 
 impl<'a> Window<'a> {
-    pub fn new<X, Y, W, H>(
-        id: u32,
-        theme: &'a Theme,
-        layout: Layout,
-        x: X,
-        y: Y,
-        width: W,
-        height: H,
-    ) -> Self
+    pub fn new<X, Y, W, H>(id: u32, layout: Layout, x: X, y: Y, width: W, height: H) -> Self
     where
         X: TryInto<Size>,
         Y: TryInto<Size>,
@@ -98,8 +95,9 @@ impl<'a> Window<'a> {
 
         Self {
             id,
-            theme,
             layout,
+
+            theme: &Theme::DEFAULT,
             x,
             y,
             width,
@@ -107,11 +105,20 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Ctrl<'f> {
-        let parent_extents = frame.ctrl_inner_extents();
-        let cursor_position = frame.window_cursor_position();
-        let lmb_pressed = frame.window_inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
-        let lmb_released = frame.window_inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn begin<'f, A, TA>(&self, frame: &'f mut Frame<A, TA>) -> Ctrl<'f, A, TA>
+    where
+        A: Allocator + Clone,
+        TA: Allocator,
+    {
+        let parent_size = frame.ctrl_inner_size();
+        let cursor_position = frame.cursor_position();
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
 
         let mut ctrl = frame.push_ctrl(self.id);
         let hovered = ctrl.hovered();
@@ -127,10 +134,10 @@ impl<'a> Window<'a> {
             )
         } else {
             (
-                self.x.resolve(parent_extents.x),
-                self.y.resolve(parent_extents.y),
-                self.width.resolve(parent_extents.x),
-                self.height.resolve(parent_extents.y),
+                self.x.resolve(parent_size.x),
+                self.y.resolve(parent_size.y),
+                self.width.resolve(parent_size.x),
+                self.height.resolve(parent_size.y),
                 ACTIVITY_NONE,
             )
         };
@@ -146,7 +153,7 @@ impl<'a> Window<'a> {
 
         let resize_handle_dimension = self.theme.window_padding + self.theme.window_border;
         let resize_handle_hovered = {
-            let position = ctrl.window_position();
+            let position = ctrl.absolute_position();
             let rect = Rect::new(
                 position.x + width - resize_handle_dimension,
                 position.y + height - resize_handle_dimension,
@@ -169,19 +176,18 @@ impl<'a> Window<'a> {
             } else {
                 let activity_start_x = activity_start_x(state);
                 let activity_start_y = activity_start_y(state);
-                let activity_start_extents = Vec2::new(activity_start_x, activity_start_y);
+                let activity_start_size = Vec2::new(activity_start_x, activity_start_y);
 
                 let activity_start_cursor_x = activity_start_cursor_x(state);
                 let activity_start_cursor_y = activity_start_cursor_y(state);
                 let activity_start_cursor_position =
                     Vec2::new(activity_start_cursor_x, activity_start_cursor_y);
 
-                let extents =
-                    activity_start_extents + cursor_position - activity_start_cursor_position;
-                let extents_clamped = extents.max(Vec2::ZERO);
+                let size = activity_start_size + cursor_position - activity_start_cursor_position;
+                let size_clamped = size.max(Vec2::ZERO);
 
-                width = extents_clamped.x;
-                height = extents_clamped.y;
+                width = size_clamped.x;
+                height = size_clamped.y;
 
                 set_width(state, width);
                 set_height(state, height);
@@ -280,7 +286,11 @@ impl<'a> Window<'a> {
         ctrl
     }
 
-    pub fn end(&self, frame: &mut Frame) {
+    pub fn end<A, TA>(&self, frame: &mut Frame<A, TA>)
+    where
+        A: Allocator + Clone,
+        TA: Allocator,
+    {
         frame.pop_ctrl();
     }
 }

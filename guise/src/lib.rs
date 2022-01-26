@@ -1,7 +1,10 @@
 #![no_std]
+#![feature(allocator_api)]
+#![feature(const_trait_impl)]
 #![allow(clippy::too_many_arguments)]
 
-// TODO(yan): Don't even depend on alloc.
+// TODO(yan): Don't even depend on alloc, if we ever have the time to write our
+// own collections.
 extern crate alloc;
 
 #[cfg(test)]

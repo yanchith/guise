@@ -1,47 +1,53 @@
+use core::alloc::Allocator;
+
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn checkbox(frame: &mut Frame, id: u32, value: &mut bool, label: &str) -> bool {
-    let theme = &Theme::DEFAULT;
-    Checkbox::new(id, theme, value, label).show(frame)
+pub fn checkbox<A, TA>(frame: &mut Frame<A, TA>, id: u32, value: &mut bool, label: &str) -> bool
+where
+    A: Allocator + Clone,
+    TA: Allocator,
+{
+    Checkbox::new(id, value, label).show(frame)
 }
 
 pub struct Checkbox<'a> {
     id: u32,
-    theme: &'a Theme,
     value: &'a mut bool,
     label: &'a str,
-
-    x: f32,
-    y: f32,
+    theme: &'a Theme,
 }
 
 impl<'a> Checkbox<'a> {
-    pub fn new(id: u32, theme: &'a Theme, value: &'a mut bool, label: &'a str) -> Self {
+    pub fn new(id: u32, value: &'a mut bool, label: &'a str) -> Self {
         Self {
             id,
-            theme,
             value,
             label,
-
-            x: 0.0,
-            y: 0.0,
+            theme: &Theme::DEFAULT,
         }
     }
 
-    pub fn show(&mut self, frame: &mut Frame) -> bool {
-        let lmb_pressed = frame.window_inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
-        let lmb_released = frame.window_inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
+        self.theme = theme;
+        self
+    }
+
+    pub fn show<A, TA>(&mut self, frame: &mut Frame<A, TA>) -> bool
+    where
+        A: Allocator + Clone,
+        TA: Allocator,
+    {
+        let parent_size = frame.ctrl_inner_size();
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+
+        let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.checkbox_margin);
 
         let mut ctrl = frame.push_ctrl(self.id);
         ctrl.set_flags(CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE);
         ctrl.set_layout(Layout::Vertical);
-        ctrl.set_rect(Rect::new(
-            self.x,
-            self.y,
-            self.theme.checkbox_width,
-            self.theme.checkbox_height,
-        ));
+        ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.checkbox_height));
         ctrl.set_padding(0.0);
         ctrl.set_border(self.theme.checkbox_border);
         ctrl.set_margin(self.theme.checkbox_margin);
@@ -101,7 +107,7 @@ impl<'a> Checkbox<'a> {
             );
         }
 
-        ctrl.draw_text(
+        ctrl.draw_text_ex(
             false,
             Vec2::new(40.0, 0.0),
             self.label,

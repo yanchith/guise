@@ -1,6 +1,5 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::convert::TryFrom as _;
 use std::mem;
 use std::num::{NonZeroU32, NonZeroU64};
 
@@ -11,47 +10,50 @@ struct TextureResource {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, bytemuck::Zeroable, bytemuck::Pod)]
+#[derive(Debug, Clone, Copy)]
+#[derive(bytemuck::Zeroable, bytemuck::Pod)]
 struct TransformUniforms {
     matrix: [[f32; 4]; 4],
 }
 
-#[derive(Debug, Clone)]
-pub enum DrawError {
-    TextureNotFound(u64),
-}
-
 pub struct Renderer {
     sampler: wgpu::Sampler,
-    transform_buffer: wgpu::Buffer,
-    transform_bind_group: wgpu::BindGroup,
+    transform_uniform_buffer: wgpu::Buffer,
+    transform_uniform_bind_group: wgpu::BindGroup,
     texture_bind_group_layout: wgpu::BindGroupLayout,
     render_pipeline: wgpu::RenderPipeline,
 
     texture_resources: HashMap<u64, TextureResource>,
     texture_resources_next_id: u64,
-
-    scissor_stack: Vec<(u32, u32, u32, u32)>,
 }
 
 impl Renderer {
     pub fn new(device: &wgpu::Device, render_attachment_format: wgpu::TextureFormat) -> Self {
-        static SHADER_SOURCE: &str = include_str!("../guise_example/guise_renderer_wgpu.wgsl");
-        let shader_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        // static SHADER_SOURCE: &str = include_str!("../guise_example/guise_renderer_wgpu.wgsl");
+        static VS_SOURCE: &[u32] =
+            vk_shader_macros::include_glsl!("../guise_example/guise_renderer_wgpu.vert");
+        static FS_SOURCE: &[u32] =
+            vk_shader_macros::include_glsl!("../guise_example/guise_renderer_wgpu.frag");
+
+        let vs_shader_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::Wgsl(Cow::from(SHADER_SOURCE)),
+            source: wgpu::ShaderSource::SpirV(Cow::from(VS_SOURCE)),
+        });
+        let fs_shader_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+            label: None,
+            source: wgpu::ShaderSource::SpirV(Cow::from(FS_SOURCE)),
         });
 
         // Create transform uniform buffer bind group
-        let transform_buffer_size = size_of::<TransformUniforms>();
-        let transform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        let transform_uniform_size = size_of::<TransformUniforms>();
+        let transform_uniform_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: transform_buffer_size,
+            size: transform_uniform_size,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
-        let transform_bind_group_layout =
+        let transform_uniform_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 label: None,
                 entries: &[wgpu::BindGroupLayoutEntry {
@@ -60,19 +62,19 @@ impl Renderer {
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
                         has_dynamic_offset: false,
-                        min_binding_size: Some(NonZeroU64::new(transform_buffer_size).unwrap()),
+                        min_binding_size: Some(NonZeroU64::new(transform_uniform_size).unwrap()),
                     },
                     count: None,
                 }],
             });
 
-        let transform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        let transform_uniform_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
-            layout: &transform_bind_group_layout,
+            layout: &transform_uniform_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: wgpu::BindingResource::Buffer(wgpu::BufferBinding {
-                    buffer: &transform_buffer,
+                    buffer: &transform_uniform_buffer,
                     offset: 0,
                     size: None,
                 }),
@@ -97,10 +99,7 @@ impl Renderer {
                     wgpu::BindGroupLayoutEntry {
                         binding: 1,
                         visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler {
-                            filtering: true,
-                            comparison: false,
-                        },
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                         count: None,
                     },
                 ],
@@ -110,7 +109,10 @@ impl Renderer {
 
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: None,
-            bind_group_layouts: &[&transform_bind_group_layout, &texture_bind_group_layout],
+            bind_group_layouts: &[
+                &transform_uniform_bind_group_layout,
+                &texture_bind_group_layout,
+            ],
             push_constant_ranges: &[],
         });
 
@@ -121,8 +123,8 @@ impl Renderer {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &shader_module,
-                entry_point: "vs_main",
+                module: &vs_shader_module,
+                entry_point: "main",
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: size_of::<guise::Vertex>(),
                     step_mode: wgpu::VertexStepMode::Vertex,
@@ -153,7 +155,7 @@ impl Renderer {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                clamp_depth: false,
+                unclipped_depth: false,
                 polygon_mode: wgpu::PolygonMode::Fill,
                 conservative: false,
             },
@@ -164,8 +166,8 @@ impl Renderer {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &shader_module,
-                entry_point: "fs_main",
+                module: &fs_shader_module,
+                entry_point: "main",
                 targets: &[wgpu::ColorTargetState {
                     format: render_attachment_format,
                     blend: Some(wgpu::BlendState {
@@ -183,6 +185,7 @@ impl Renderer {
                     write_mask: wgpu::ColorWrites::ALL,
                 }],
             }),
+            multiview: None,
         });
 
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
@@ -203,14 +206,12 @@ impl Renderer {
         Self {
             sampler,
             render_pipeline,
-            transform_buffer,
-            transform_bind_group,
+            transform_uniform_buffer,
+            transform_uniform_bind_group,
             texture_bind_group_layout,
 
             texture_resources: HashMap::new(),
             texture_resources_next_id: 0,
-
-            scissor_stack: Vec::with_capacity(16),
         }
     }
 
@@ -278,12 +279,9 @@ impl Renderer {
         let texture_id = self.texture_resources_next_id;
         self.texture_resources_next_id += 1;
 
-        self.texture_resources.insert(
-            texture_id,
-            TextureResource {
-                bind_group: texture_bind_group,
-            },
-        );
+        self.texture_resources.insert(texture_id, TextureResource {
+            bind_group: texture_bind_group,
+        });
 
         texture_id
     }
@@ -303,23 +301,29 @@ impl Renderer {
         viewport_physical_width: u32,
         viewport_physical_height: u32,
         viewport_scale: f32,
-        draw_list: &guise::DrawList,
-    ) -> Result<(), DrawError> {
-        if draw_list.commands().is_empty() || draw_list.vertices().is_empty() {
-            return Ok(());
+        commands: &[guise::Command],
+        vertices: &[guise::Vertex],
+        indices: &[u32],
+    ) {
+        if commands.is_empty() || vertices.is_empty() || indices.is_empty() {
+            return;
         }
 
         if viewport_physical_width == 0 || viewport_physical_height == 0 {
-            return Ok(());
+            return;
         }
 
-        assert!(self.scissor_stack.is_empty());
-
-        // TODO(yan): @Speed Re-use buffer and/or use Queue::write_buffer
+        // TODO(yan): @Speed Staging Belt, or re-use buffer.
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(draw_list.vertices()),
+            contents: bytemuck::cast_slice(vertices),
             usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(indices),
+            usage: wgpu::BufferUsages::INDEX,
         });
 
         let transform = {
@@ -340,7 +344,11 @@ impl Renderer {
             TransformUniforms { matrix }
         };
 
-        queue.write_buffer(&self.transform_buffer, 0, bytemuck::bytes_of(&transform));
+        queue.write_buffer(
+            &self.transform_uniform_buffer,
+            0,
+            bytemuck::bytes_of(&transform),
+        );
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -357,67 +365,41 @@ impl Renderer {
 
         render_pass.set_pipeline(&self.render_pipeline);
         render_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+        render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        render_pass.set_bind_group(0, &self.transform_uniform_bind_group, &[]);
 
-        render_pass.set_bind_group(0, &self.transform_bind_group, &[]);
+        let vw = viewport_physical_width;
+        let vh = viewport_physical_height;
 
-        let mut consumed_vertex_count: u32 = 0;
-        let mut set_scissor_rect: Option<(u32, u32, u32, u32)> = None;
-        for command in draw_list.commands() {
-            match command {
-                guise::Command::Draw {
-                    vertex_count,
-                    texture_id,
-                } => {
-                    let texture_resource = self
-                        .texture_resources
-                        .get(texture_id)
-                        .ok_or(DrawError::TextureNotFound(*texture_id))?;
-
-                    if let Some((x, y, w, h)) = set_scissor_rect.take() {
-                        render_pass.set_scissor_rect(x, y, w, h);
-                    }
-                    render_pass.set_bind_group(1, &texture_resource.bind_group, &[]);
-                    render_pass.draw(
-                        consumed_vertex_count..(consumed_vertex_count + vertex_count),
-                        0..1,
-                    );
-
-                    consumed_vertex_count += vertex_count;
-                }
-                guise::Command::PushScissorRect {
-                    x,
-                    y,
-                    width,
-                    height,
-                } => {
-                    // X and Y are floored instead of rounded, because we might
-                    // otherwise round to dimension + 1 and crash the renderer.
-                    let x = (viewport_scale * x).floor() as u32;
-                    let y = (viewport_scale * y).floor() as u32;
-                    let w = (viewport_scale * width).round() as u32;
-                    let h = (viewport_scale * height).round() as u32;
-                    let scissor_rect = (x, y, w, h);
-
-                    let vw = viewport_physical_width;
-                    let vh = viewport_physical_height;
-
-                    if w == 0 || h == 0 || x + w > vw || y + h > vh {
-                        log::error!("Scissor rect ({} {} {} {}) invalid", x, y, w, h);
-                    } else {
-                        set_scissor_rect = Some(scissor_rect);
-                        self.scissor_stack.push(scissor_rect);
-                    }
-                }
-                guise::Command::PopScissorRect => {
-                    self.scissor_stack.pop().unwrap();
-                    set_scissor_rect = self.scissor_stack.last().copied();
-                }
+        let mut consumed_index_count: u32 = 0;
+        for command in commands {
+            let x = (viewport_scale * command.scissor_rect.x).floor() as u32;
+            let y = (viewport_scale * command.scissor_rect.y).floor() as u32;
+            let w = (viewport_scale * command.scissor_rect.width).round() as u32;
+            let h = (viewport_scale * command.scissor_rect.height).round() as u32;
+            if w == 0 || h == 0 || x + w > vw || y + h > vh {
+                log::error!("Scissor rect ({x} {y} {w} {h}) invalid");
+                continue;
             }
+
+            let texture_resource = match self.texture_resources.get(&command.texture_id) {
+                Some(texture_resource) => texture_resource,
+                None => {
+                    log::error!("Missing texture {}", command.texture_id);
+                    continue;
+                }
+            };
+
+            render_pass.set_scissor_rect(x, y, w, h);
+            render_pass.set_bind_group(1, &texture_resource.bind_group, &[]);
+            render_pass.draw_indexed(
+                consumed_index_count..(consumed_index_count + command.index_count),
+                0,
+                0..1,
+            );
+
+            consumed_index_count += command.index_count;
         }
-
-        assert!(self.scissor_stack.is_empty());
-
-        Ok(())
     }
 }
 

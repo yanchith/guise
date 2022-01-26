@@ -1,15 +1,6 @@
 #version 450
 
-// TODO(yan): @Cleanup This shader is currently not used, both because wgpu is
-// beginning to drop spirv-cross (and only supports
-// Features::SPIRV_SHADER_PASSTHROUGH on a few platforms) AND we'd like to not
-// use shaderc if possible AND naga is not stable enough for GLSL just yet,
-// although the situation is improving.
-//
-// It can be re-used for the Vulkan backend, if it ever exists, or (with some
-// minor tweaks) the GLes backend.
-
-layout(set = 0, binding = 0) uniform Transform {
+layout(set = 0, binding = 0) uniform TransformUniforms {
     mat4 u_matrix;
 };
 

@@ -1,12 +1,16 @@
+use alloc::vec::Vec;
+use core::alloc::Allocator;
+use core::mem;
 use core::ops::{BitOr, BitOrAssign, Range};
 
-use alloc::vec::Vec;
+use arrayvec::ArrayString;
 
-use arrayvec::{ArrayString, ArrayVec};
-
-use crate::core::draw_list::DrawList;
+use crate::core::draw_list::{Command, DrawList, Vertex};
 use crate::core::font_atlas::{FontAtlas, UnicodeRangeFlags};
 use crate::core::math::{Rect, Vec2};
+
+const ROOT_IDX: usize = 0;
+const OVERLAY_ROOT_IDX: usize = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Inputs(u32);
@@ -38,29 +42,27 @@ impl Inputs {
     // TODO(yan): Fill in gamepad thingies.
 
     pub const NONE: Self = Self(0);
-    pub const ALL: Self = Self(
-        Self::MOUSE_BUTTON_LEFT.0
-            | Self::MOUSE_BUTTON_RIGHT.0
-            | Self::MOUSE_BUTTON_MIDDLE.0
-            | Self::MOUSE_BUTTON_4.0
-            | Self::MOUSE_BUTTON_5.0
-            | Self::MOUSE_BUTTON_6.0
-            | Self::MOUSE_BUTTON_7.0
-            | Self::KEYBOARD_TAB.0
-            | Self::KEYBOARD_LEFT_ARROW.0
-            | Self::KEYBOARD_RIGHT_ARROW.0
-            | Self::KEYBOARD_UP_ARROW.0
-            | Self::KEYBOARD_DOWN_ARROW.0
-            | Self::KEYBOARD_PAGE_UP.0
-            | Self::KEYBOARD_PAGE_DOWN.0
-            | Self::KEYBOARD_HOME.0
-            | Self::KEYBOARD_END.0
-            | Self::KEYBOARD_INSERT.0
-            | Self::KEYBOARD_DELETE.0
-            | Self::KEYBOARD_BACKSPACE.0
-            | Self::KEYBOARD_ENTER.0
-            | Self::KEYBOARD_ESCAPE.0,
-    );
+    pub const ALL: Self = Self::MOUSE_BUTTON_LEFT
+        | Self::MOUSE_BUTTON_RIGHT
+        | Self::MOUSE_BUTTON_MIDDLE
+        | Self::MOUSE_BUTTON_4
+        | Self::MOUSE_BUTTON_5
+        | Self::MOUSE_BUTTON_6
+        | Self::MOUSE_BUTTON_7
+        | Self::KEYBOARD_TAB
+        | Self::KEYBOARD_LEFT_ARROW
+        | Self::KEYBOARD_RIGHT_ARROW
+        | Self::KEYBOARD_UP_ARROW
+        | Self::KEYBOARD_DOWN_ARROW
+        | Self::KEYBOARD_PAGE_UP
+        | Self::KEYBOARD_PAGE_DOWN
+        | Self::KEYBOARD_HOME
+        | Self::KEYBOARD_END
+        | Self::KEYBOARD_INSERT
+        | Self::KEYBOARD_DELETE
+        | Self::KEYBOARD_BACKSPACE
+        | Self::KEYBOARD_ENTER
+        | Self::KEYBOARD_ESCAPE;
 
     pub fn bits(&self) -> u32 {
         self.0
@@ -79,7 +81,7 @@ impl Inputs {
     }
 }
 
-impl BitOr for Inputs {
+impl const BitOr for Inputs {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
@@ -93,8 +95,6 @@ impl BitOrAssign for Inputs {
     }
 }
 
-// TODO(yan): @Speed Layout::None that does nothing or asserts for child
-// controls?
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Layout {
     Free,
@@ -117,13 +117,14 @@ pub enum Wrap {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum DrawCommand {
-    DrawRect {
-        position_rect: Rect,
-        tex_coord_rect: Rect,
-        color: u32,
+enum DrawPrimitive {
+    Rect {
+        rect: Rect,
+        texture_rect: Rect,
         texture_id: u64,
+        color: u32,
     },
+    // TODO(yan): Circles, Rounded arcs, whatever..
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -146,9 +147,20 @@ impl CtrlFlags {
     /// flag.
     pub const CAPTURE_ACTIVE: Self = Self(0x04);
 
+    /// Whether to attempt shrinking the control's rect to the size of its
+    /// inline contents (text or geometry) before layout and render. This will
+    /// only ever shrink, not grow.
+    ///
+    /// One usecase is creating controls that take up space based on their
+    /// contents. They can start with rects occupying all available space (the
+    /// parent's inner size) and use this flag to shrink their rect dynamically.
+    pub const SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x08);
+
     pub const NONE: Self = Self(0);
-    pub const ALL: Self =
-        Self(Self::CAPTURE_SCROLL.0 | Self::CAPTURE_HOVER.0 | Self::CAPTURE_ACTIVE.0);
+    pub const ALL: Self = Self::CAPTURE_SCROLL
+        | Self::CAPTURE_HOVER
+        | Self::CAPTURE_ACTIVE
+        | Self::SHRINK_TO_FIT_INLINE_CONTENT;
 
     pub fn bits(self) -> u32 {
         self.0
@@ -163,7 +175,7 @@ impl CtrlFlags {
     }
 }
 
-impl BitOr for CtrlFlags {
+impl const BitOr for CtrlFlags {
     type Output = Self;
 
     fn bitor(self, other: Self) -> Self {
@@ -184,9 +196,8 @@ struct CtrlNode {
     // Unique across siblings, but no further.
     id: u32,
 
-    // TODO(yan): @Speed @Memory Make indices more compact. Option<usize> (16 bytes!!!)
-    // -> Idx(U32) (4 bytes), where Idx(u32::MAX) is the sentinel value for
-    // None.
+    // TODO(yan): @Speed @Memory Make indices more compact. Option<usize> is 16
+    // bytes, but we could carve out a niche.
     parent_idx: Option<usize>,
     child_idx: Option<usize>,
     sibling_idx: Option<usize>,
@@ -218,52 +229,75 @@ struct CtrlNode {
     draw_self_background_color: u32,
     draw_range: Range<usize>,
 
-    layout_cache_resolved_position: Vec2,
-    layout_cache_content_extents: Vec2,
+    // TODO(yan): Make find_hovered_ctrl and render use this instead oc
+    // recomputing from scratch.
+    layout_cache_absolute_position: Vec2,
+    layout_cache_content_size: Vec2,
 }
 
-pub struct Ui {
-    draw_commands: Vec<DrawCommand>,
+pub struct Ui<A: Allocator + Clone, TA: Allocator> {
+    temp_allocator: TA,
+
+    draw_primitives: Vec<DrawPrimitive, A>,
     draw_list: DrawList,
 
-    font_atlas: FontAtlas,
+    font_atlas: FontAtlas<A>,
     font_atlas_texture_id: u64,
 
-    tree: Vec<CtrlNode>,
-    tree_root_idx: usize,
+    tree: Vec<CtrlNode, A>,
 
+    building_overlay: bool,
     build_parent_idx: Option<usize>,
     build_sibling_idx: Option<usize>,
-
-    render_target_extents: Vec2,
+    overlay_build_parent_idx: Option<usize>,
+    overlay_build_sibling_idx: Option<usize>,
 
     current_frame: u32,
 
-    window_scroll_delta: Vec2,
-    window_cursor_position: Vec2,
-    window_inputs_pressed: Inputs,
-    window_inputs_released: Inputs,
-    window_received_characters: ArrayString<32>,
+    window_size: Vec2,
+    scroll_delta: Vec2,
+    cursor_position: Vec2,
+    inputs_pressed: Inputs,
+    inputs_released: Inputs,
+    received_characters: ArrayString<32>,
 
     active_ctrl_idx: Option<usize>,
     hovered_ctrl_idx: Option<usize>,
     hovered_capturing_ctrl_idx: Option<usize>,
+
+    // TODO(yan): When exactly should we be capturing keyboard and mouse
+    // automatically, when no control requests it? Currently we capture mouse
+    // when something is hovered (ImGui does the same). ImGui also automatically
+    // captures keyboard not just when a text field is active, but e.g. when
+    // windows are being dragged around.
+    want_capture_keyboard: bool,
+    want_capture_mouse: bool,
 }
 
-impl Ui {
-    pub fn new(
-        render_target_width: f32,
-        render_target_height: f32,
+impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
+    pub fn new_in(
+        window_width: f32,
+        window_height: f32,
         font_bytes: &[u8],
         font_unicode_range_flags: UnicodeRangeFlags,
         font_size: f32,
+        perm_allocator: A,
+        temp_allocator: TA,
     ) -> Self {
-        let render_target_extents = Vec2::new(render_target_width, render_target_height);
-        let font_atlas = FontAtlas::new(font_bytes, font_unicode_range_flags, font_size);
+        let a1 = perm_allocator.clone();
+        let a2 = perm_allocator.clone();
+        let a3 = perm_allocator;
 
-        let mut tree = Vec::with_capacity(128);
-        let tree_root_idx = 0;
-        tree.push(CtrlNode {
+        let window_size = Vec2::new(window_width, window_height);
+        let font_atlas = FontAtlas::new_in(
+            font_bytes,
+            font_unicode_range_flags,
+            font_size,
+            a1,
+            &temp_allocator,
+        );
+
+        let root_ctrl = CtrlNode {
             id: 0,
 
             parent_idx: None,
@@ -275,7 +309,7 @@ impl Ui {
 
             flags: CtrlFlags::NONE,
             layout: Layout::Free,
-            rect: Rect::from_points(Vec2::ZERO, render_target_extents),
+            rect: Rect::from_points(Vec2::ZERO, window_size),
             padding: 0.0,
             border: 0.0,
             margin: 0.0,
@@ -291,77 +325,82 @@ impl Ui {
             draw_self_background_color: 0,
             draw_range: 0..0,
 
-            layout_cache_resolved_position: Vec2::ZERO,
-            layout_cache_content_extents: Vec2::ZERO,
-        });
+            layout_cache_absolute_position: Vec2::ZERO,
+            layout_cache_content_size: Vec2::ZERO,
+        };
+
+        let mut tree = Vec::with_capacity_in(128, a2);
+        tree.push(root_ctrl.clone());
+        tree.push(root_ctrl);
 
         Self {
-            draw_commands: Vec::new(),
+            temp_allocator,
+
+            // TODO(yan): @Speed @Memory Pre-warmed capacities for
+            // draw_primitives and draw_list!
+            draw_primitives: Vec::new_in(a3),
+            // TODO(yan): @Speed @Memory Put draw_list into perm allocator.
             draw_list: DrawList::new(),
 
             font_atlas,
             font_atlas_texture_id: 0,
 
             tree,
-            tree_root_idx,
 
+            building_overlay: false,
             build_parent_idx: None,
             build_sibling_idx: None,
-
-            render_target_extents,
+            overlay_build_parent_idx: None,
+            overlay_build_sibling_idx: None,
 
             current_frame: 0,
 
-            window_scroll_delta: Vec2::ZERO,
-            window_cursor_position: Vec2::ZERO,
-            window_inputs_pressed: Inputs::empty(),
-            window_inputs_released: Inputs::empty(),
-            window_received_characters: ArrayString::new(),
+            window_size,
+            scroll_delta: Vec2::ZERO,
+            cursor_position: Vec2::ZERO,
+            inputs_pressed: Inputs::empty(),
+            inputs_released: Inputs::empty(),
+            received_characters: ArrayString::new(),
 
             active_ctrl_idx: None,
             hovered_ctrl_idx: None,
             hovered_capturing_ctrl_idx: None,
+
+            want_capture_keyboard: false,
+            want_capture_mouse: false,
         }
     }
 
-    pub fn set_render_target_extents(
-        &mut self,
-        render_target_width: f32,
-        render_target_height: f32,
-    ) {
-        self.render_target_extents = Vec2::new(render_target_width, render_target_height);
+    pub fn set_window_size(&mut self, window_width: f32, window_height: f32) {
+        self.window_size = Vec2::new(window_width, window_height);
     }
 
     pub fn set_font_atlas_texture_id(&mut self, font_atlas_texture_id: u64) {
         self.font_atlas_texture_id = font_atlas_texture_id;
     }
 
-    pub fn add_window_scroll_delta(&mut self, delta_x: f32, delta_y: f32) {
-        self.window_scroll_delta += Vec2::new(delta_x, delta_y);
+    pub fn scroll(&mut self, delta_x: f32, delta_y: f32) {
+        self.scroll_delta += Vec2::new(delta_x, delta_y);
     }
 
-    pub fn set_window_cursor_position(&mut self, cursor_x: f32, cursor_y: f32) {
-        self.window_cursor_position = Vec2::new(cursor_x, cursor_y);
+    pub fn set_cursor_position(&mut self, cursor_x: f32, cursor_y: f32) {
+        self.cursor_position = Vec2::new(cursor_x, cursor_y);
     }
 
-    pub fn add_window_inputs_pressed(&mut self, inputs: Inputs) {
-        self.window_inputs_pressed |= inputs;
+    pub fn press_inputs(&mut self, inputs: Inputs) {
+        self.inputs_pressed |= inputs;
     }
 
-    pub fn add_window_inputs_released(&mut self, inputs: Inputs) {
-        self.window_inputs_released |= inputs;
+    pub fn release_inputs(&mut self, inputs: Inputs) {
+        self.inputs_released |= inputs;
     }
 
-    pub fn add_window_character(&mut self, character: char) {
-        #[allow(clippy::single_match)]
-        match self.window_received_characters.try_push(character) {
-            Ok(()) => (/* We pushed the character */),
-            Err(_) => (/* We loose chars here, but such is life */),
-        }
+    pub fn send_character(&mut self, character: char) {
+        let _ = self.received_characters.try_push(character);
     }
 
-    pub fn font_atlas_image_extents(&self) -> (u16, u16) {
-        self.font_atlas.image_extents()
+    pub fn font_atlas_image_size(&self) -> (u16, u16) {
+        self.font_atlas.image_size()
     }
 
     pub fn font_atlas_image_rgba8_unorm(&self) -> &[u8] {
@@ -372,75 +411,63 @@ impl Ui {
         self.tree.len()
     }
 
-    pub fn draw_list(&self) -> &DrawList {
-        &self.draw_list
+    pub fn want_capture_keyboard(&self) -> bool {
+        self.want_capture_keyboard
     }
 
-    pub fn begin_frame(&mut self) -> Frame<'_> {
-        self.draw_commands.clear();
+    pub fn want_capture_mouse(&self) -> bool {
+        self.want_capture_mouse
+    }
+
+    pub fn draw_list(&self) -> (&[Command], &[Vertex], &[u32]) {
+        (
+            self.draw_list.commands(),
+            self.draw_list.vertices(),
+            self.draw_list.indices(),
+        )
+    }
+
+    pub fn begin_frame(&mut self) -> Frame<'_, A, TA> {
+        // NB: Clear inputs from GUI to platform to.
+        self.draw_primitives.clear();
         self.draw_list.clear();
+        self.want_capture_keyboard = false;
+        self.want_capture_mouse = false;
 
         self.current_frame = self.current_frame.wrapping_add(1);
 
-        let tree_root_ctrl = &mut self.tree[self.tree_root_idx];
-        tree_root_ctrl.last_frame = self.current_frame;
-        tree_root_ctrl.last_frame_in_active_path = self.current_frame;
-        tree_root_ctrl.rect = Rect::from_points(Vec2::ZERO, self.render_target_extents);
+        let root_ctrl = &mut self.tree[ROOT_IDX];
+        root_ctrl.last_frame = self.current_frame;
+        root_ctrl.last_frame_in_active_path = self.current_frame;
+        root_ctrl.rect = Rect::from_points(Vec2::ZERO, self.window_size);
 
-        //
-        // Scroll a control.
-        //
-        // If the hovered control doesn't want scrolling or doesn't have
-        // overflow it could scroll, walk the tree up to the first eligible
-        // control and scroll that!
-        if self.window_scroll_delta != Vec2::ZERO {
-            if let Some(idx) = self.hovered_ctrl_idx {
-                let mut ctrl = &mut self.tree[idx];
-                let mut ctrl_scroll_extents = Vec2::ZERO.max(
-                    ctrl.layout_cache_content_extents - ctrl.rect.extents()
-                        + 2.0 * Vec2::new(ctrl.padding, ctrl.padding)
-                        + 2.0 * Vec2::new(ctrl.border, ctrl.border),
-                );
-                let mut ctrl_scroll_offset_new = (ctrl.scroll_offset - self.window_scroll_delta)
-                    .clamp(Vec2::ZERO, ctrl_scroll_extents);
-                let mut ctrl_can_scroll = ctrl.flags.intersects(CtrlFlags::CAPTURE_SCROLL)
-                    && ctrl_scroll_offset_new != ctrl.scroll_offset;
-
-                while !ctrl_can_scroll && ctrl.parent_idx.is_some() {
-                    let parent_idx = ctrl.parent_idx.unwrap();
-
-                    ctrl = &mut self.tree[parent_idx];
-                    ctrl_scroll_extents = Vec2::ZERO.max(
-                        ctrl.layout_cache_content_extents - ctrl.rect.extents()
-                            + 2.0 * Vec2::new(ctrl.padding, ctrl.padding)
-                            + 2.0 * Vec2::new(ctrl.border, ctrl.border),
-                    );
-                    ctrl_scroll_offset_new = (ctrl.scroll_offset - self.window_scroll_delta)
-                        .clamp(Vec2::ZERO, ctrl_scroll_extents);
-                    ctrl_can_scroll = ctrl.flags.intersects(CtrlFlags::CAPTURE_SCROLL)
-                        && ctrl_scroll_offset_new != ctrl.scroll_offset;
-                }
-
-                if ctrl_can_scroll {
-                    ctrl.scroll_offset = ctrl_scroll_offset_new;
-                }
-            }
-        }
+        let overlay_root_ctrl = &mut self.tree[OVERLAY_ROOT_IDX];
+        overlay_root_ctrl.last_frame = self.current_frame;
+        overlay_root_ctrl.last_frame_in_active_path = self.current_frame;
+        overlay_root_ctrl.rect = Rect::from_points(Vec2::ZERO, self.window_size);
 
         //
         // Find hovered control.
         //
         // Look at the tree starting from the root and follow branches where the
-        // child control's rect contains the cursor.
+        // child control's rect contains the cursor. First look at the overlay
+        // tree, only then look at the base layer, if we didn't find a
+        // hover-capturing ctrl.
+        //
+        // TODO(yan): Audit this. Not sure why we look for hovered node in the
+        // base layer if we don't find hover-capturing node in the overlay.
+        //
+        self.hovered_capturing_ctrl_idx = None;
         self.hovered_ctrl_idx = find_hovered_ctrl(
             &self.tree,
-            self.tree_root_idx,
-            Rect::from_points(Vec2::ZERO, self.render_target_extents),
-            self.window_cursor_position,
+            OVERLAY_ROOT_IDX,
+            self.cursor_position,
+            &self.temp_allocator,
         );
-        self.hovered_capturing_ctrl_idx = None;
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
+            self.want_capture_mouse = true;
+
             let mut ctrl_idx = hovered_ctrl_idx;
             let mut ctrl = &self.tree[hovered_ctrl_idx];
 
@@ -456,122 +483,99 @@ impl Ui {
             }
         }
 
-        fn find_hovered_ctrl(
+        if self.hovered_capturing_ctrl_idx == None {
+            self.hovered_ctrl_idx = find_hovered_ctrl(
+                &self.tree,
+                ROOT_IDX,
+                self.cursor_position,
+                &self.temp_allocator,
+            );
+        }
+
+        if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
+            self.want_capture_mouse = true;
+
+            let mut ctrl_idx = hovered_ctrl_idx;
+            let mut ctrl = &self.tree[hovered_ctrl_idx];
+
+            while !ctrl.flags.intersects(CtrlFlags::CAPTURE_HOVER) && ctrl.parent_idx.is_some() {
+                let parent_idx = ctrl.parent_idx.unwrap();
+
+                ctrl_idx = parent_idx;
+                ctrl = &self.tree[parent_idx];
+            }
+
+            if ctrl.flags.intersects(CtrlFlags::CAPTURE_HOVER) {
+                self.hovered_capturing_ctrl_idx = Some(ctrl_idx);
+            }
+        }
+
+        fn find_hovered_ctrl<TA: Allocator>(
             tree: &[CtrlNode],
             ctrl_idx: usize,
-            ctrl_rect: Rect,
             cursor_position: Vec2,
+            temp_allocator: &TA,
         ) -> Option<usize> {
             let ctrl = &tree[ctrl_idx];
-            if ctrl_rect.contains_point(cursor_position) {
+            let ctrl_rect_absolute = Rect::new(
+                ctrl.layout_cache_absolute_position.x,
+                ctrl.layout_cache_absolute_position.y,
+                ctrl.rect.width,
+                ctrl.rect.height,
+            );
+
+            if ctrl_rect_absolute.contains_point(cursor_position) {
                 if ctrl.layout == Layout::Free {
                     // For free layout, we'd like to preserve the render order
                     // of controls when determining hover. The most recently
                     // active control (on top) has priority when determining
                     // hover, followed by the next most recently active control,
                     // all the way up to the least recently active control.
-                    //
-                    // TODO(yan): @Correctness Would be great if we didn't panic
-                    // in ArrayVec::push.
 
-                    let child_rect_offset_base = ctrl_rect.min_point() - ctrl.scroll_offset;
-
-                    let mut siblings: ArrayVec<(usize, u32), 64> = ArrayVec::new();
+                    let mut siblings: Vec<(usize, u32), _> = Vec::new_in(temp_allocator);
                     if let Some(child_idx) = ctrl.child_idx {
-                        let mut ctrl = &tree[child_idx];
+                        let mut child = &tree[child_idx];
+                        siblings.push((child_idx, child.last_frame_in_active_path));
 
-                        siblings.push((child_idx, ctrl.last_frame_in_active_path));
-
-                        while let Some(sibling_idx) = ctrl.sibling_idx {
-                            ctrl = &tree[sibling_idx];
-                            siblings.push((sibling_idx, ctrl.last_frame_in_active_path));
+                        while let Some(sibling_idx) = child.sibling_idx {
+                            child = &tree[sibling_idx];
+                            siblings.push((sibling_idx, child.last_frame_in_active_path));
                         }
                     }
 
                     siblings.sort_unstable_by_key(|&(_, frame)| frame);
 
                     for (sibling_idx, _) in siblings.into_iter().rev() {
-                        let child_idx = sibling_idx;
-                        let child = &tree[sibling_idx];
-
-                        let hovered_ctrl = find_hovered_ctrl(
-                            tree,
-                            child_idx,
-                            child.rect + child_rect_offset_base,
-                            cursor_position,
-                        );
-
-                        if hovered_ctrl.is_some() {
+                        if let Some(hovered_ctrl) =
+                            find_hovered_ctrl(tree, sibling_idx, cursor_position, temp_allocator)
+                        {
                             // This control is hovered, but also one of its
                             // children is.
-                            return hovered_ctrl;
+                            return Some(hovered_ctrl);
                         }
                     }
 
                     // This control is hovered, but none of its children are.
                     Some(ctrl_idx)
                 } else if let Some(child_idx) = ctrl.child_idx {
-                    let child_rect_offset_base = ctrl_rect.min_point()
-                        + Vec2::new(ctrl.padding, ctrl.padding)
-                        + Vec2::new(ctrl.border, ctrl.border)
-                        - ctrl.scroll_offset;
-
-                    let mut child = &tree[child_idx];
-
-                    let mut hovered_ctrl = find_hovered_ctrl(
-                        tree,
-                        child_idx,
-                        child.rect + child_rect_offset_base,
-                        cursor_position,
-                    );
-
-                    if hovered_ctrl.is_some() {
+                    if let Some(hovered_ctrl) =
+                        find_hovered_ctrl(tree, child_idx, cursor_position, temp_allocator)
+                    {
                         // This control is hovered, but also one of its
                         // children is.
-                        return hovered_ctrl;
+                        return Some(hovered_ctrl);
                     }
 
-                    let mut position = match ctrl.layout {
-                        Layout::Free => unreachable!(),
-                        Layout::Horizontal => {
-                            child.rect.x() + child.rect.offset(child.margin).width()
-                        }
-                        Layout::Vertical => {
-                            child.rect.y() + child.rect.offset(child.margin).height()
-                        }
-                    };
-
+                    let mut child = &tree[child_idx];
                     while let Some(sibling_idx) = child.sibling_idx {
                         child = &tree[sibling_idx];
-                        let child_rect_offset = match ctrl.layout {
-                            Layout::Free => unreachable!(),
-                            Layout::Horizontal => Vec2::X * position,
-                            Layout::Vertical => Vec2::Y * position,
-                        };
 
-                        hovered_ctrl = find_hovered_ctrl(
-                            tree,
-                            sibling_idx,
-                            child.rect + child_rect_offset_base + child_rect_offset,
-                            cursor_position,
-                        );
-
-                        if hovered_ctrl.is_some() {
+                        if let Some(hovered_ctrl) =
+                            find_hovered_ctrl(tree, sibling_idx, cursor_position, temp_allocator)
+                        {
                             // This control is hovered, but also one of its
                             // children is.
-                            return hovered_ctrl;
-                        }
-
-                        match ctrl.layout {
-                            Layout::Free => unreachable!(),
-                            Layout::Horizontal => {
-                                position += child.rect.x();
-                                position += child.rect.offset(child.margin).width();
-                            }
-                            Layout::Vertical => {
-                                position += child.rect.y();
-                                position += child.rect.offset(child.margin).height();
-                            }
+                            return Some(hovered_ctrl);
                         }
                     }
 
@@ -587,13 +591,104 @@ impl Ui {
             }
         }
 
-        self.build_parent_idx = Some(self.tree_root_idx);
+        //
+        // Scroll a control.
+        //
+        // If the hovered control doesn't want scrolling or doesn't have
+        // overflow it could scroll, walk the tree up to the first eligible
+        // control and scroll that!
+        //
+        if self.scroll_delta != Vec2::ZERO {
+            if let Some(idx) = self.hovered_ctrl_idx {
+                let mut ctrl = &mut self.tree[idx];
+                let mut ctrl_scroll_size = Vec2::ZERO.max(
+                    ctrl.layout_cache_content_size - ctrl.rect.size()
+                        + 2.0 * ctrl.padding
+                        + 2.0 * ctrl.border,
+                );
+                let mut ctrl_scroll_offset_new =
+                    (ctrl.scroll_offset - self.scroll_delta).clamp(Vec2::ZERO, ctrl_scroll_size);
+                let mut ctrl_can_scroll = ctrl.flags.intersects(CtrlFlags::CAPTURE_SCROLL)
+                    && ctrl_scroll_offset_new != ctrl.scroll_offset;
+
+                while !ctrl_can_scroll && ctrl.parent_idx.is_some() {
+                    let parent_idx = ctrl.parent_idx.unwrap();
+
+                    ctrl = &mut self.tree[parent_idx];
+                    ctrl_scroll_size = Vec2::ZERO.max(
+                        ctrl.layout_cache_content_size - ctrl.rect.size()
+                            + 2.0 * ctrl.padding
+                            + 2.0 * ctrl.border,
+                    );
+                    ctrl_scroll_offset_new = (ctrl.scroll_offset - self.scroll_delta)
+                        .clamp(Vec2::ZERO, ctrl_scroll_size);
+                    ctrl_can_scroll = ctrl.flags.intersects(CtrlFlags::CAPTURE_SCROLL)
+                        && ctrl_scroll_offset_new != ctrl.scroll_offset;
+                }
+
+                if ctrl_can_scroll {
+                    ctrl.scroll_offset = ctrl_scroll_offset_new;
+                }
+            }
+        }
+
+        self.build_parent_idx = Some(ROOT_IDX);
         self.build_sibling_idx = None;
+        self.overlay_build_parent_idx = Some(OVERLAY_ROOT_IDX);
+        self.overlay_build_sibling_idx = None;
 
         Frame { ui: self }
     }
 
     pub fn end_frame(&mut self) {
+        // Perform cleanup on the roots analogous to the cleanup that happens in
+        // pop_ctrl for other (not root) controls.
+        {
+            debug_assert!(self.tree[ROOT_IDX].sibling_idx == None);
+            debug_assert!(self.tree[OVERLAY_ROOT_IDX].sibling_idx == None);
+            debug_assert!(self.build_parent_idx == Some(ROOT_IDX));
+            debug_assert!(self.overlay_build_parent_idx == Some(OVERLAY_ROOT_IDX));
+
+            if let Some(build_sibling_idx) = self.build_sibling_idx {
+                self.tree[build_sibling_idx].sibling_idx = None;
+            } else {
+                self.tree[self.build_parent_idx.unwrap()].child_idx = None;
+            }
+
+            if let Some(overlay_build_sibling_idx) = self.overlay_build_sibling_idx {
+                self.tree[overlay_build_sibling_idx].sibling_idx = None;
+            } else {
+                self.tree[self.overlay_build_parent_idx.unwrap()].child_idx = None;
+            }
+        }
+
+        // Discover reachachable dead controls in the tree. If there are any, we
+        // did something wrong. There can be dead nodes, but they must not be
+        // reachable.
+        #[cfg(debug_assertions)]
+        {
+            dead_discovery(&self.tree, ROOT_IDX, self.current_frame);
+            dead_discovery(&self.tree, OVERLAY_ROOT_IDX, self.current_frame);
+
+            fn dead_discovery(tree: &[CtrlNode], ctrl_idx: usize, current_frame: u32) {
+                let mut ctrl = &tree[ctrl_idx];
+
+                if ctrl.last_frame != current_frame {
+                    let id = ctrl.id;
+                    panic!("Reachable dead control found at {ctrl_idx}, id: {id}");
+                }
+
+                if let Some(child_idx) = ctrl.child_idx {
+                    dead_discovery(tree, child_idx, current_frame);
+
+                    while let Some(sibling_idx) = ctrl.sibling_idx {
+                        dead_discovery(tree, sibling_idx, current_frame);
+                        ctrl = &tree[sibling_idx];
+                    }
+                }
+            }
+        }
+
         //
         // Collect dead controls.
         //
@@ -604,24 +699,25 @@ impl Ui {
         //
         // By this point, dead controls should not be referenced by any live
         // control, so there is no need to fix references to them.
+        //
+        // TODO(yan): @Speed This GC sucks at maintaining locality between
+        // siblings. Do some kind of double-buffering and compaction.
+        //
 
-        // TODO(yan): @Speed This garbage collection is terrible! Can we do better?
-        const RELOCATIONS_CAP: usize = 256;
-        let mut relocations: ArrayVec<(usize, usize), RELOCATIONS_CAP> = ArrayVec::new();
+        let mut relocations: Vec<(usize, usize), _> =
+            Vec::with_capacity_in(self.tree.len(), &self.temp_allocator);
 
-        fn apply_relocation(idx_to_relocate: &mut Option<usize>, from: usize, to: usize) {
+        fn apply_relocation(idx_to_relocate: &mut Option<usize>, src: usize, dst: usize) {
             if let Some(idx) = idx_to_relocate.as_mut() {
-                if *idx == from {
-                    *idx = to;
+                if *idx == src {
+                    *idx = dst;
                 }
             }
         }
 
         let mut ctrl_idx = 0;
         while ctrl_idx < self.tree.len() {
-            if self.tree[ctrl_idx].last_frame == self.current_frame {
-                ctrl_idx += 1;
-            } else {
+            if self.tree[ctrl_idx].last_frame != self.current_frame {
                 // The swapped in control could be dead too. Keep doing
                 // swap_remove until we find a live control, only then record
                 // the relocation.
@@ -629,41 +725,27 @@ impl Ui {
                     && self.tree[ctrl_idx].last_frame != self.current_frame
                 {
                     self.tree.swap_remove(ctrl_idx);
-                    ctrl_idx += 1;
                 }
 
-                relocations.push((ctrl_idx, self.tree.len()));
-
-                // Our relocations buffer might have filled. Relocation time!
-                if relocations.len() == RELOCATIONS_CAP {
-                    for ctrl in &mut self.tree {
-                        // Only apply relocations to live controls.
-                        if ctrl.last_frame == self.current_frame {
-                            for relocation in &relocations {
-                                let &(from, to) = relocation;
-                                apply_relocation(&mut ctrl.parent_idx, from, to);
-                                apply_relocation(&mut ctrl.child_idx, from, to);
-                                apply_relocation(&mut ctrl.sibling_idx, from, to);
-                                apply_relocation(&mut self.active_ctrl_idx, from, to);
-                            }
-                        }
-                    }
-
-                    relocations.clear();
+                // Only record the relocation if we found a live control - the
+                // previous loop either stopped at the end of the tree vec, or
+                // by finding a live control.
+                if ctrl_idx < self.tree.len() {
+                    relocations.push((self.tree.len(), ctrl_idx));
                 }
             }
+
+            ctrl_idx += 1;
         }
 
-        // Apply the rest of the relocations, if any.
-        if !relocations.is_empty() {
+        // Apply relocations.
+        for &(src, dst) in &relocations {
+            apply_relocation(&mut self.active_ctrl_idx, src, dst);
+
             for ctrl in &mut self.tree {
-                for relocation in &relocations {
-                    let &(from, to) = relocation;
-                    apply_relocation(&mut ctrl.parent_idx, from, to);
-                    apply_relocation(&mut ctrl.child_idx, from, to);
-                    apply_relocation(&mut ctrl.sibling_idx, from, to);
-                    apply_relocation(&mut self.active_ctrl_idx, from, to);
-                }
+                apply_relocation(&mut ctrl.parent_idx, src, dst);
+                apply_relocation(&mut ctrl.child_idx, src, dst);
+                apply_relocation(&mut ctrl.sibling_idx, src, dst);
             }
         }
 
@@ -672,31 +754,35 @@ impl Ui {
         //
         // Because the build phase is now done, we can incorporate all the
         // layout changes. They will be used for this frame's render phase, and
-        // next frame's build phase.
-        update_ctrl_layout(&mut self.tree, self.tree_root_idx, Vec2::ZERO);
+        // next frame's build phase. We update both the base layer and the
+        // overlay.
+        //
+        update_ctrl_layout(&mut self.tree, ROOT_IDX, Vec2::ZERO);
+        update_ctrl_layout(&mut self.tree, OVERLAY_ROOT_IDX, Vec2::ZERO);
 
         fn update_ctrl_layout(
             tree: &mut [CtrlNode],
             ctrl_idx: usize,
-            ctrl_resolved_position_base: Vec2,
+            ctrl_absolute_position_base: Vec2,
         ) {
             let ctrl = &tree[ctrl_idx];
             let ctrl_layout = ctrl.layout;
             let ctrl_inline_content_rect = ctrl.inline_content_rect;
-            let ctrl_resolved_position = ctrl_resolved_position_base + ctrl.rect.min_point();
+            let ctrl_absolute_position =
+                ctrl_absolute_position_base + ctrl.rect.min_point() + ctrl.margin;
 
             if let Some(child_idx) = ctrl.child_idx {
-                let child_resolved_position_base = ctrl_resolved_position;
+                let child_absolute_position_base =
+                    ctrl_absolute_position + ctrl.border + ctrl.padding - ctrl.scroll_offset;
 
-                update_ctrl_layout(tree, child_idx, child_resolved_position_base);
+                update_ctrl_layout(tree, child_idx, child_absolute_position_base);
 
                 let mut child = &tree[child_idx];
                 let mut child_margin_rect = child.rect.offset(child.margin);
-
-                let mut child_resolved_position_offset = match ctrl_layout {
+                let mut child_absolute_position_offset = match ctrl_layout {
                     Layout::Free => Vec2::ZERO,
-                    Layout::Horizontal => Vec2::X * child_margin_rect.width(),
-                    Layout::Vertical => Vec2::Y * child_margin_rect.height(),
+                    Layout::Horizontal => Vec2::new(child_margin_rect.width, 0.0),
+                    Layout::Vertical => Vec2::new(0.0, child_margin_rect.height),
                 };
 
                 let mut min_point = child_margin_rect.min_point();
@@ -706,7 +792,7 @@ impl Ui {
                     update_ctrl_layout(
                         tree,
                         sibling_idx,
-                        child_resolved_position_base + child_resolved_position_offset,
+                        child_absolute_position_base + child_absolute_position_offset,
                     );
 
                     child = &tree[sibling_idx];
@@ -718,14 +804,14 @@ impl Ui {
                             max_point = max_point.max(child_margin_rect.max_point());
                         }
                         Layout::Horizontal => {
-                            child_resolved_position_offset += Vec2::X * child_margin_rect.width();
-                            max_point.x += child_margin_rect.width();
+                            child_absolute_position_offset += Vec2::X * child_margin_rect.width;
+                            max_point.x += child_margin_rect.width;
                             max_point.y = max_point.y.max(child_margin_rect.max_y());
                         }
                         Layout::Vertical => {
-                            child_resolved_position_offset += Vec2::Y * child_margin_rect.height();
+                            child_absolute_position_offset += Vec2::Y * child_margin_rect.height;
                             max_point.x = max_point.x.max(child_margin_rect.max_x());
-                            max_point.y += child_margin_rect.height();
+                            max_point.y += child_margin_rect.height;
                         }
                     }
                 }
@@ -736,93 +822,138 @@ impl Ui {
                 }
 
                 let ctrl_mut = &mut tree[ctrl_idx];
-                ctrl_mut.layout_cache_resolved_position = ctrl_resolved_position;
-                ctrl_mut.layout_cache_content_extents = max_point - min_point;
+                ctrl_mut.layout_cache_absolute_position = ctrl_absolute_position;
+                ctrl_mut.layout_cache_content_size = max_point - min_point;
             } else {
                 let ctrl_mut = &mut tree[ctrl_idx];
 
-                ctrl_mut.layout_cache_resolved_position = ctrl_resolved_position;
+                ctrl_mut.layout_cache_absolute_position = ctrl_absolute_position;
                 if let Some(inline_content_rect) = ctrl_inline_content_rect {
-                    tree[ctrl_idx].layout_cache_content_extents = inline_content_rect.extents();
+                    tree[ctrl_idx].layout_cache_content_size = inline_content_rect.size();
                 } else {
-                    tree[ctrl_idx].layout_cache_content_extents = Vec2::ZERO;
+                    tree[ctrl_idx].layout_cache_content_size = Vec2::ZERO;
                 }
             }
         }
 
         //
-        // Render into the draw lists.
+        // Render into the draw lists. First the base, then the overlay.
         //
         render(
             &self.tree,
-            self.tree_root_idx,
-            Rect::from_points(Vec2::ZERO, self.render_target_extents),
-            Rect::from_points(Vec2::ZERO, self.render_target_extents),
-            &self.draw_commands,
+            ROOT_IDX,
+            Rect::from_points(Vec2::ZERO, self.window_size),
+            &self.draw_primitives,
             self.font_atlas_texture_id,
             &mut self.draw_list,
+            &self.temp_allocator,
+        );
+        render(
+            &self.tree,
+            OVERLAY_ROOT_IDX,
+            Rect::from_points(Vec2::ZERO, self.window_size),
+            &self.draw_primitives,
+            self.font_atlas_texture_id,
+            &mut self.draw_list,
+            &self.temp_allocator,
         );
 
-        fn render(
+        fn render<TA: Allocator>(
             tree: &[CtrlNode],
             ctrl_idx: usize,
-            ctrl_rect: Rect,
-            ctrl_scissor_rect: Rect,
-            draw_commands: &[DrawCommand],
+            parent_ctrl_scissor_rect: Rect,
+            draw_primitives: &[DrawPrimitive],
             font_atlas_texture_id: u64,
             draw_list: &mut DrawList,
+            temp_allocator: &TA,
         ) {
             let ctrl = &tree[ctrl_idx];
+            let ctrl_rect_absolute = Rect::new(
+                ctrl.layout_cache_absolute_position.x,
+                ctrl.layout_cache_absolute_position.y,
+                ctrl.rect.width,
+                ctrl.rect.height,
+            );
+
+            let ctrl_scissor_rect = parent_ctrl_scissor_rect
+                .clamp_rect(ctrl_rect_absolute)
+                .inset(ctrl.border);
+
+            // Some renderer backends dislike scissor rect with zero or negative
+            // dimensions, as well as dimensions greater than the surface
+            // dimensions. If we get dangerously close, let's not render
+            // anything.
+            if ctrl_scissor_rect.width < 1.0 || ctrl_scissor_rect.height < 1.0 {
+                return;
+            }
 
             if ctrl.draw_self {
                 let border_color = ctrl.draw_self_border_color;
                 let background_color = ctrl.draw_self_background_color;
 
-                let ctrl_padding_rect = ctrl_rect.inset(ctrl.border);
+                let ctrl_padding_rect_absolute = ctrl_rect_absolute.inset(ctrl.border);
 
-                if !ctrl_rect.is_empty() && !ctrl_padding_rect.is_empty() {
+                if !ctrl_rect_absolute.is_empty() && !ctrl_padding_rect_absolute.is_empty() {
                     // Note that `.max(0.0)` is used in
                     // substractions here because fp precision
                     // commonly caused the result to be below 0,
                     // which is a big no-no for Rect::new.
 
-                    let outer = ctrl_rect;
-                    let inner = ctrl_padding_rect;
+                    let outer = ctrl_rect_absolute;
+                    let inner = ctrl_padding_rect_absolute;
 
-                    let lx = outer.x();
-                    let ly = outer.y();
-                    let lwidth = (inner.x() - outer.x()).max(0.0);
-                    let lheight = outer.height();
+                    let lx = outer.x;
+                    let ly = outer.y;
+                    let lwidth = (inner.x - outer.x).max(0.0);
+                    let lheight = outer.height;
                     let left = Rect::new(lx, ly, lwidth, lheight);
 
-                    let tx = inner.x();
-                    let ty = outer.y();
-                    let twidth = inner.width();
-                    let theight = (inner.y() - outer.y()).max(0.0);
+                    let tx = inner.x;
+                    let ty = outer.y;
+                    let twidth = inner.width;
+                    let theight = (inner.y - outer.y).max(0.0);
                     let top = Rect::new(tx, ty, twidth, theight);
 
-                    let rx = inner.x() + inner.width();
-                    let ry = outer.y();
-                    let rwidth = (outer.width() - inner.width() - lwidth).max(0.0);
-                    let rheight = outer.height();
+                    let rx = inner.x + inner.width;
+                    let ry = outer.y;
+                    let rwidth = (outer.width - inner.width - lwidth).max(0.0);
+                    let rheight = outer.height;
                     let right = Rect::new(rx, ry, rwidth, rheight);
 
-                    let bx = inner.x();
-                    let by = inner.y() + inner.height();
-                    let bwidth = inner.width();
-                    let bheight = (outer.height() - inner.height() - theight).max(0.0);
+                    let bx = inner.x;
+                    let by = inner.y + inner.height;
+                    let bwidth = inner.width;
+                    let bheight = (outer.height - inner.height - theight).max(0.0);
                     let bottom = Rect::new(bx, by, bwidth, bheight);
 
                     if !left.is_empty() {
-                        draw_list.draw_rect(left, Rect::ZERO, border_color, font_atlas_texture_id);
+                        draw_list.draw_rect(
+                            left,
+                            Rect::ZERO,
+                            border_color,
+                            parent_ctrl_scissor_rect,
+                            font_atlas_texture_id,
+                        );
                     }
 
                     if !top.is_empty() {
-                        draw_list.draw_rect(top, Rect::ZERO, border_color, font_atlas_texture_id);
+                        draw_list.draw_rect(
+                            top,
+                            Rect::ZERO,
+                            border_color,
+                            parent_ctrl_scissor_rect,
+                            font_atlas_texture_id,
+                        );
                     }
 
                     if !right.is_empty() {
-                        draw_list.draw_rect(right, Rect::ZERO, border_color, font_atlas_texture_id);
+                        draw_list.draw_rect(
+                            right,
+                            Rect::ZERO,
+                            border_color,
+                            parent_ctrl_scissor_rect,
+                            font_atlas_texture_id,
+                        );
                     }
 
                     if !bottom.is_empty() {
@@ -830,38 +961,41 @@ impl Ui {
                             bottom,
                             Rect::ZERO,
                             border_color,
+                            parent_ctrl_scissor_rect,
                             font_atlas_texture_id,
                         );
                     }
                 }
 
                 draw_list.draw_rect(
-                    ctrl_padding_rect,
+                    ctrl_padding_rect_absolute,
                     Rect::ZERO,
                     background_color,
+                    parent_ctrl_scissor_rect,
                     font_atlas_texture_id,
                 );
             }
 
-            draw_list.push_scissor_rect(ctrl_scissor_rect);
-
-            for draw_command_idx in ctrl.draw_range.clone() {
-                let draw_command = &draw_commands[draw_command_idx];
-
-                match draw_command {
-                    DrawCommand::DrawRect {
-                        position_rect,
-                        tex_coord_rect,
-                        color,
+            for draw_primitive_idx in ctrl.draw_range.clone() {
+                let draw_primitive = &draw_primitives[draw_primitive_idx];
+                match draw_primitive {
+                    DrawPrimitive::Rect {
+                        rect,
+                        texture_rect,
                         texture_id,
+                        color,
                     } => {
-                        let rect = *position_rect
-                            + ctrl_rect.min_point()
-                            + Vec2::new(ctrl.border, ctrl.border)
-                            + Vec2::new(ctrl.padding, ctrl.padding)
-                            - ctrl.scroll_offset;
+                        let rect =
+                            *rect + ctrl_rect_absolute.min_point() + ctrl.padding + ctrl.border
+                                - ctrl.scroll_offset;
 
-                        draw_list.draw_rect(rect, *tex_coord_rect, *color, *texture_id);
+                        draw_list.draw_rect(
+                            rect,
+                            *texture_rect,
+                            *color,
+                            ctrl_scissor_rect,
+                            *texture_id,
+                        );
                     }
                 }
             }
@@ -870,19 +1004,9 @@ impl Ui {
                 // For free layout, we'd like to preserve render order of
                 // controls, e.g. we render least recently active control first,
                 // then a more recently active control, all the way up to the
-                // currently active control. The thing is sorting the entire
-                // sibling list can become quite expensive (and stack size is
-                // limited), so we cap the sorting to N controls. If we exceed
-                // that, we gracefully degrade from fully sorted rendering to
-                // just rendering the active control last, and the rest in
-                // definition order.
-                //
-                // TODO(yan): And by graceful degradation, I mean something else
-                // than the currently panicking code below (ArrayVec::push).
-
-                let child_rect_offset_base = ctrl_rect.min_point() - ctrl.scroll_offset;
-
-                let mut siblings: ArrayVec<(usize, u32), 64> = ArrayVec::new();
+                // currently active control. To that end, we sort the the
+                // siblings by last frame in active path.
+                let mut siblings: Vec<(usize, u32), _> = Vec::new_in(temp_allocator);
                 if let Some(child_idx) = ctrl.child_idx {
                     let mut ctrl = &tree[child_idx];
 
@@ -897,150 +1021,79 @@ impl Ui {
                 siblings.sort_unstable_by_key(|&(_, frame)| frame);
 
                 for (sibling_idx, _) in siblings {
-                    let child = &tree[sibling_idx];
-
-                    // Clamp the resolved rect to ctrl_rect and do not render
-                    // the child control unless the clamped rect has nonzero
-                    // area. This is because some renderers dislike scissor
-                    // rects that have zero dimensions or ones that escape the
-                    // screen. We ensure this by having the topmost element of
-                    // the same size as the render target.
-                    // rect_clamped_has_dims checks, whether the dimensions
-                    // won't round to zero.
-                    let rect = child.rect + child_rect_offset_base;
-                    let scissor_rect = ctrl_scissor_rect.clamp_rect(rect).inset(child.border);
-                    let scissor_rect_has_dims =
-                        scissor_rect.width() >= 0.5 && scissor_rect.height() >= 0.5;
-
-                    if ctrl_rect.intersects_rect(rect) && scissor_rect_has_dims {
-                        render(
-                            tree,
-                            sibling_idx,
-                            rect,
-                            scissor_rect,
-                            draw_commands,
-                            font_atlas_texture_id,
-                            draw_list,
-                        );
-                    }
+                    render(
+                        tree,
+                        sibling_idx,
+                        ctrl_scissor_rect,
+                        draw_primitives,
+                        font_atlas_texture_id,
+                        draw_list,
+                        temp_allocator,
+                    );
                 }
             } else {
                 // For horizontal and vertical layouts, we don't need any
                 // sorting and just iterate over the controls in definition
                 // order.
                 if let Some(child_idx) = ctrl.child_idx {
-                    let child_rect_offset_base = ctrl_rect.min_point()
-                        + Vec2::new(ctrl.border, ctrl.border)
-                        + Vec2::new(ctrl.padding, ctrl.padding)
-                        - ctrl.scroll_offset;
+                    render(
+                        tree,
+                        child_idx,
+                        ctrl_scissor_rect,
+                        draw_primitives,
+                        font_atlas_texture_id,
+                        draw_list,
+                        temp_allocator,
+                    );
 
                     let mut child = &tree[child_idx];
-
-                    {
-                        // Same as above, we clamp the control's rect so that we
-                        // don't output an invalid scissor rect.
-                        let rect = child.rect + child_rect_offset_base;
-                        let scissor_rect = ctrl_scissor_rect.clamp_rect(rect).inset(child.border);
-                        let scissor_rect_has_dims =
-                            scissor_rect.width() >= 0.5 && scissor_rect.height() >= 0.5;
-
-                        if ctrl_rect.intersects_rect(rect) && scissor_rect_has_dims {
-                            render(
-                                tree,
-                                child_idx,
-                                rect,
-                                scissor_rect,
-                                draw_commands,
-                                font_atlas_texture_id,
-                                draw_list,
-                            );
-                        }
-                    }
-
-                    let mut position = match ctrl.layout {
-                        Layout::Free => unreachable!(),
-                        Layout::Horizontal => {
-                            child.rect.x() + child.rect.offset(child.margin).width()
-                        }
-                        Layout::Vertical => {
-                            child.rect.y() + child.rect.offset(child.margin).height()
-                        }
-                    };
-
                     while let Some(sibling_idx) = child.sibling_idx {
                         child = &tree[sibling_idx];
-                        let child_rect_offset = match ctrl.layout {
-                            Layout::Free => unreachable!(),
-                            Layout::Horizontal => Vec2::X * position,
-                            Layout::Vertical => Vec2::Y * position,
-                        };
 
-                        // Same as above, we clamp the control's rect so that we
-                        // don't output an invalid scissor rect.
-                        let rect = child.rect + child_rect_offset_base + child_rect_offset;
-                        let scissor_rect = ctrl_scissor_rect.clamp_rect(rect).inset(child.border);
-                        let scissor_rect_has_dims =
-                            scissor_rect.width() >= 0.5 && scissor_rect.height() >= 0.5;
-
-                        if ctrl_rect.intersects_rect(rect) && scissor_rect_has_dims {
-                            render(
-                                tree,
-                                sibling_idx,
-                                rect,
-                                scissor_rect,
-                                draw_commands,
-                                font_atlas_texture_id,
-                                draw_list,
-                            );
-                        }
-
-                        match ctrl.layout {
-                            Layout::Free => unreachable!(),
-                            Layout::Horizontal => {
-                                position += child.rect.x();
-                                position += child.rect.offset(child.margin).width();
-                            }
-                            Layout::Vertical => {
-                                position += child.rect.y();
-                                position += child.rect.offset(child.margin).height();
-                            }
-                        }
+                        render(
+                            tree,
+                            sibling_idx,
+                            ctrl_scissor_rect,
+                            draw_primitives,
+                            font_atlas_texture_id,
+                            draw_list,
+                            temp_allocator,
+                        );
                     }
                 }
             }
-
-            draw_list.pop_scissor_rect();
         }
 
         self.build_parent_idx = None;
         self.build_sibling_idx = None;
 
-        self.window_scroll_delta = Vec2::ZERO;
-        self.window_inputs_pressed = Inputs::empty();
-        self.window_inputs_released = Inputs::empty();
-        self.window_received_characters.clear();
+        // NB: Clear inputs from platform to GUI.
+        self.scroll_delta = Vec2::ZERO;
+        self.inputs_pressed = Inputs::empty();
+        self.inputs_released = Inputs::empty();
+        self.received_characters.clear();
     }
 }
 
-pub struct Frame<'a> {
-    ui: &'a mut Ui,
+pub struct Frame<'a, A: Allocator + Clone, TA: Allocator> {
+    ui: &'a mut Ui<A, TA>,
 }
 
-impl<'a> Frame<'a> {
-    pub fn push_ctrl(&mut self, id: u32) -> Ctrl<'_> {
-        // Push a control onto the tree. The control can either be completely new,
-        // or already present in the tree from previous frame. Controls are
-        // identified by their ID, which has to be unique among siblings of a
+impl<'a, A: Allocator + Clone, TA: Allocator> Frame<'a, A, TA> {
+    pub fn push_ctrl(&mut self, id: u32) -> Ctrl<'_, A, TA> {
+        // Push a control onto the tree. The control can either be completely
+        // new, or already present in the tree from previous frame. Controls are
+        // identified by their ID, which has to be unique among children of a
         // single control.
         //
         // Whether inserting a new control or updating an existing one, we must
         // never unlink a control already present in the tree, because it may
         // yet be updated later this frame and we would have lost its state.
         //
-        // Updated controls are first unlinked from the tree, and then
-        // re-inserted at the current position. This means that dead controls
-        // (if any) will be located after the live controls once the UI is
-        // built.
+        // Updated controls are first temporarily unlinked from the tree, and
+        // then re-inserted at the current position. This means that dead
+        // controls (if any) will be located after the live controls once the UI
+        // is built.
         //
         // Current position in the tree is tracked by two indices:
         // build_parent_idx and build_sibling_idx, pointing to the current
@@ -1048,88 +1101,103 @@ impl<'a> Frame<'a> {
         //
         // Note: Changing the control's layout options invalidates the layout
         // from last frame for this control and all its sibling successors, and
-        // their children, but so does re-ordering, or not updating control from
-        // earlier frame. The layout will become valid on the next frame once
-        // again.
+        // their children, but so does re-ordering, or not updating a control
+        // from earlier frame. The layout will become valid on the next frame
+        // once again.
 
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let draw_range = {
-            let next_draw_command_idx = self.ui.draw_commands.len();
-            next_draw_command_idx..next_draw_command_idx
+            let next_idx = self.ui.draw_primitives.len();
+            next_idx..next_idx
         };
 
-        let result = {
+        // TODO(yan): @Speed only search from build_sibling.sibling_idx, if
+        // build_sibling already exists.
+        let found_idx_and_prev_idx = {
             let parent = &self.ui.tree[build_parent_idx];
 
-            // TODO(yan): @Speed This is quadratic behavior. Not great.
+            // TODO(yan): @Speed This is quadratic. Not great.
             if let Some(child_idx) = parent.child_idx {
-                let mut prev_ctrl_idx = None;
-                let mut ctrl_idx = child_idx;
                 let mut ctrl = &mut self.ui.tree[child_idx];
 
                 if ctrl.id == id {
-                    Some((ctrl_idx, prev_ctrl_idx))
+                    Some((child_idx, None))
                 } else {
-                    let mut current_idx_res = None;
+                    let mut result = None;
 
+                    let mut ctrl_idx = child_idx;
                     while let Some(sibling_idx) = ctrl.sibling_idx {
-                        prev_ctrl_idx = Some(ctrl_idx);
+                        let prev_ctrl_idx = ctrl_idx;
                         ctrl_idx = sibling_idx;
                         ctrl = &mut self.ui.tree[sibling_idx];
 
                         if ctrl.id == id {
-                            current_idx_res = Some((ctrl_idx, prev_ctrl_idx));
+                            result = Some((ctrl_idx, Some(prev_ctrl_idx)));
                             break;
                         }
                     }
 
-                    current_idx_res
+                    result
                 }
             } else {
                 None
             }
         };
 
-        let current_idx = if let Some((found_idx, found_prev_sibling_idx)) = result {
+        let current_idx = if let Some((found_idx, found_prev_idx)) = found_idx_and_prev_idx {
             let ctrl = &mut self.ui.tree[found_idx];
+
+            // We do not support re-entrancy. Controls can only be updated
+            // once. This simplifies things:
+            //
+            // - We know that found_idx != build_sibling_idx, because the build
+            //   sibling would have to be pushed and popped before,
+            //
+            // - We know that found_idx hasn't been pushed yet.
+            //
+            // TODO(yan): @Correctness This assert goes off if we render the
+            // component only on some frames (discoverd by drawing a conditional
+            // window in PH). We most definitely were not updating the same
+            // component multiple times per frame, so this is an issue with
+            // unlinking dead controls and/or GC?
+            assert!(
+                ctrl.last_frame != self.ui.current_frame,
+                "Attempt to update the same control ({id}) twice in one frame",
+            );
 
             ctrl.last_frame = self.ui.current_frame;
             ctrl.inline_content_rect = None;
             ctrl.draw_range = draw_range;
 
-            // After updating the control's data, we unlink the nore from its
+            // After updating the control's data, we unlink the control from its
             // original place and re-link as either the next sibling of the
             // build sibling (if build sibling already exists) or first child of
             // the build parent (if the build sibling doesn't exist yet).
-            //
-            // IMPORTANT(yan): We do not unlink/re-link, if the control is the
-            // build sibling itself as that would create a cycle. Fortunately,
-            // the control is already linked correctly in this case.
-            if self.ui.build_sibling_idx != Some(found_idx) {
-                // Unlink the control from previous sibling or parent (in case
-                // the control was the first child).
-                if let Some(found_prev_sibling_idx) = found_prev_sibling_idx {
-                    self.ui.tree[found_prev_sibling_idx].sibling_idx = ctrl.sibling_idx;
-                } else {
-                    self.ui.tree[build_parent_idx].child_idx = ctrl.sibling_idx;
-                }
+            if let Some(found_prev_idx) = found_prev_idx {
+                self.ui.tree[found_prev_idx].sibling_idx = ctrl.sibling_idx;
+            }
 
-                // Re-link the control as next sibling of the build sibling or
-                // as first child of build parent (in case there is no build
-                // sibling yet).
-                if let Some(build_sibling_idx) = self.ui.build_sibling_idx {
-                    let build_sibling = &mut self.ui.tree[build_sibling_idx];
-                    let build_sibling_next_sibling_idx = build_sibling.sibling_idx;
+            // Re-link the control as next sibling of the build sibling or
+            // as first child of build parent (in case there is no build
+            // sibling yet).
+            if let Some(build_sibling_idx) = self.ui.build_sibling_idx {
+                let build_sibling = &mut self.ui.tree[build_sibling_idx];
+                let build_sibling_next_sibling_idx = build_sibling.sibling_idx;
 
+                // If we are already positioned correctly, relinking would
+                // create a cycle.
+                if build_sibling_next_sibling_idx != Some(found_idx) {
                     build_sibling.sibling_idx = Some(found_idx);
-
                     self.ui.tree[found_idx].sibling_idx = build_sibling_next_sibling_idx;
-                } else {
-                    let build_parent = &mut self.ui.tree[build_parent_idx];
-                    let build_parent_child_idx = build_parent.child_idx;
+                }
+            } else {
+                let build_parent = &mut self.ui.tree[build_parent_idx];
+                let build_parent_child_idx = build_parent.child_idx;
 
+                // If we are already positioned correctly, relinking would
+                // create a cycle.
+                if build_parent_child_idx != Some(found_idx) {
                     build_parent.child_idx = Some(found_idx);
-
                     self.ui.tree[found_idx].sibling_idx = build_parent_child_idx;
                 }
             }
@@ -1145,14 +1213,12 @@ impl<'a> Frame<'a> {
                 let build_sibling_next_sibling_idx = build_sibling.sibling_idx;
 
                 build_sibling.sibling_idx = Some(idx);
-
                 build_sibling_next_sibling_idx
             } else {
                 let build_parent = &mut self.ui.tree[build_parent_idx];
                 let build_parent_child_idx = build_parent.child_idx;
 
                 build_parent.child_idx = Some(idx);
-
                 build_parent_child_idx
             };
 
@@ -1184,8 +1250,8 @@ impl<'a> Frame<'a> {
                 draw_self_background_color: 0,
                 draw_range,
 
-                layout_cache_resolved_position: Vec2::ZERO,
-                layout_cache_content_extents: Vec2::ZERO,
+                layout_cache_absolute_position: Vec2::ZERO,
+                layout_cache_content_size: Vec2::ZERO,
             });
 
             idx
@@ -1196,7 +1262,7 @@ impl<'a> Frame<'a> {
 
         Ctrl {
             idx: current_idx,
-            ui: &mut self.ui,
+            ui: self.ui,
         }
     }
 
@@ -1207,58 +1273,126 @@ impl<'a> Frame<'a> {
         // their indices so that they only reference live controls. If no child
         // controls were inserted, clear the parent's child references (which
         // could contain dead controls from previous frame). Also cut off the
-        // dead sibling controls of the last sibling here, so that we won't have
-        // to relocate references to them during garbage collection.
+        // dead sibling controls of the last sibling here, so that they are not
+        // reachable.
 
         // TODO(yan): @Correctness Assert that push_ctrl and pop_ctrl are
-        // parethesized correctly! Count current tree depth and assert something
-        // in both pop_ctrl and end_frame?
+        // parenthesized correctly! Count current tree depth and assert
+        // something in both pop_ctrl and end_frame?
 
-        let parent = &mut self.ui.tree[build_parent_idx];
-        let parent_parent_idx = parent.parent_idx;
+        let build_parent = &mut self.ui.tree[build_parent_idx];
+        let build_parent_parent_idx = build_parent.parent_idx;
+
+        if build_parent
+            .flags
+            .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_CONTENT)
+        {
+            if let Some(inline_content_rect) = build_parent.inline_content_rect {
+                let rect = build_parent.rect;
+                let border = build_parent.border;
+                let padding = build_parent.padding;
+
+                let size = rect.size();
+                let inline_size = inline_content_rect.size() + 2.0 * border + 2.0 * padding;
+
+                let min_size = size.min(inline_size);
+
+                build_parent.rect = Rect::new(rect.x, rect.y, min_size.x, min_size.y);
+            }
+        }
 
         if let Some(build_sibling_idx) = self.ui.build_sibling_idx {
             self.ui.tree[build_sibling_idx].sibling_idx = None;
         } else {
-            parent.child_idx = None;
+            build_parent.child_idx = None;
         }
 
-        self.ui.build_parent_idx = parent_parent_idx;
+        self.ui.build_parent_idx = build_parent_parent_idx;
         self.ui.build_sibling_idx = Some(build_parent_idx);
     }
 
-    pub fn window_cursor_position(&self) -> Vec2 {
-        self.ui.window_cursor_position
+    pub fn begin_overlay(&mut self) {
+        assert!(!self.ui.building_overlay);
+
+        mem::swap(
+            &mut self.ui.build_parent_idx,
+            &mut self.ui.overlay_build_parent_idx,
+        );
+        mem::swap(
+            &mut self.ui.build_sibling_idx,
+            &mut self.ui.overlay_build_sibling_idx,
+        );
+
+        self.ui.building_overlay = true;
     }
 
-    pub fn window_inputs_pressed(&self) -> Inputs {
-        self.ui.window_inputs_pressed
+    pub fn end_overlay(&mut self) {
+        assert!(self.ui.building_overlay);
+
+        mem::swap(
+            &mut self.ui.build_parent_idx,
+            &mut self.ui.overlay_build_parent_idx,
+        );
+        mem::swap(
+            &mut self.ui.build_sibling_idx,
+            &mut self.ui.overlay_build_sibling_idx,
+        );
+
+        self.ui.building_overlay = false;
     }
 
-    pub fn window_inputs_released(&self) -> Inputs {
-        self.ui.window_inputs_released
+    pub fn window_size(&self) -> Vec2 {
+        self.ui.window_size
     }
 
-    pub fn window_received_characters(&self) -> &str {
-        &self.ui.window_received_characters
+    pub fn cursor_position(&self) -> Vec2 {
+        self.ui.cursor_position
     }
 
-    pub fn ctrl_inner_extents(&self) -> Vec2 {
+    pub fn inputs_pressed(&self) -> Inputs {
+        self.ui.inputs_pressed
+    }
+
+    pub fn inputs_released(&self) -> Inputs {
+        self.ui.inputs_released
+    }
+
+    pub fn received_characters(&self) -> &str {
+        &self.ui.received_characters
+    }
+
+    pub fn ctrl_state(&self) -> &CtrlState {
+        &self.ui.tree[self.ui.build_parent_idx.unwrap()].state
+    }
+
+    pub fn ctrl_state_mut(&mut self) -> &mut CtrlState {
+        &mut self.ui.tree[self.ui.build_parent_idx.unwrap()].state
+    }
+
+    pub fn ctrl_absolute_position(&self) -> Vec2 {
+        self.ui.tree[self.ui.build_parent_idx.unwrap()].layout_cache_absolute_position
+    }
+
+    pub fn ctrl_inner_size(&self) -> Vec2 {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let parent = &self.ui.tree[build_parent_idx];
         let rect = parent.rect.inset(parent.border).inset(parent.padding);
 
-        rect.extents()
+        rect.size()
+    }
+
+    pub fn ctrl_count(&self) -> usize {
+        self.ui.ctrl_count()
     }
 }
 
-pub struct Ctrl<'a> {
+pub struct Ctrl<'a, A: Allocator + Clone, TA: Allocator> {
     idx: usize,
-    ui: &'a mut Ui,
+    ui: &'a mut Ui<A, TA>,
 }
 
 // TODO(yan): Vertical and horizontal align.
-impl Ctrl<'_> {
+impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
     pub fn set_active(&mut self, active: bool) {
         if active {
             self.ui.active_ctrl_idx = Some(self.idx);
@@ -1367,52 +1501,72 @@ impl Ctrl<'_> {
         &mut self.ui.tree[self.idx].state
     }
 
-    pub fn window_position(&self) -> Vec2 {
-        self.ui.tree[self.idx].layout_cache_resolved_position
+    pub fn absolute_position(&self) -> Vec2 {
+        self.ui.tree[self.idx].layout_cache_absolute_position
     }
 
-    pub fn inner_extents(&self) -> Vec2 {
+    pub fn inner_size(&self) -> Vec2 {
         let ctrl = &self.ui.tree[self.idx];
         let rect = ctrl.rect.inset(ctrl.border).inset(ctrl.padding);
 
-        rect.extents()
+        rect.size()
+    }
+
+    pub fn request_want_capture_keyboard(&mut self) {
+        self.ui.want_capture_keyboard = true;
+    }
+
+    pub fn request_want_capture_mouse(&mut self) {
+        self.ui.want_capture_mouse = true;
     }
 
     pub fn draw_rect(
         &mut self,
-        extend_content_rect: bool,
-        position_rect: Rect,
-        tex_coord_rect: Rect,
+        include_in_inline_content_rect: bool,
+        rect: Rect,
+        texture_rect: Rect,
         color: u32,
         texture_id: u64,
     ) {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
-        let next_draw_command_idx = self.ui.draw_commands.len();
+        let next_draw_primitive_idx = self.ui.draw_primitives.len();
 
         let parent = &mut self.ui.tree[build_parent_idx];
-        assert!(parent.draw_range.end == next_draw_command_idx);
+        assert!(parent.draw_range.end == next_draw_primitive_idx);
 
-        self.ui.draw_commands.push(DrawCommand::DrawRect {
-            position_rect,
-            tex_coord_rect,
-            color,
+        self.ui.draw_primitives.push(DrawPrimitive::Rect {
+            rect,
+            texture_rect,
             texture_id,
+            color,
         });
 
         parent.draw_range.end += 1;
-        if extend_content_rect {
+        if include_in_inline_content_rect {
             parent.inline_content_rect = Some(
                 parent
                     .inline_content_rect
-                    .map(|r| r.extend_by_rect(position_rect))
-                    .unwrap_or(position_rect),
+                    .map(|r| r.extend_by_rect(rect))
+                    .unwrap_or(rect),
             );
         }
     }
 
-    pub fn draw_text(
+    pub fn draw_text(&mut self, text: &str, color: u32) {
+        self.draw_text_ex(
+            true,
+            Vec2::ZERO,
+            text,
+            Align::Start,
+            Align::Center,
+            Wrap::Word,
+            color,
+        );
+    }
+
+    pub fn draw_text_ex(
         &mut self,
-        extend_content_rect: bool,
+        include_in_inline_content_rect: bool,
         position: Vec2,
         text: &str,
         horizontal_align: Align,
@@ -1421,14 +1575,31 @@ impl Ctrl<'_> {
         color: u32,
     ) {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
-        let next_draw_command_idx = self.ui.draw_commands.len();
+        let next_draw_primitive_idx = self.ui.draw_primitives.len();
 
         let parent = &mut self.ui.tree[build_parent_idx];
-        assert!(parent.draw_range.end == next_draw_command_idx);
 
-        let available_rect = parent.rect.inset(parent.border).inset(parent.padding);
-        let available_width = (available_rect.width() - position.x).max(0.0);
-        let available_height = (available_rect.height() - position.y).max(0.0);
+        assert!(parent.draw_range.end == next_draw_primitive_idx);
+
+        // NB: Vertical align only makes sense, if there is any free space to
+        // align in. If we are going to shrink, there is no free space and it
+        // simplifies things for us to align to start and not care later.
+        //
+        // Note that horizontal align still makes sense for shrinking, because
+        // the lines will still be jagged and the width difference between
+        // longest line and current line will provide the alignment space.
+        let vertical_align = if parent
+            .flags
+            .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_CONTENT)
+        {
+            Align::Start
+        } else {
+            vertical_align
+        };
+
+        let available_rect = parent.rect.inset(2.0 * parent.border + 2.0 * parent.padding);
+        let available_width = (available_rect.width - position.x).max(0.0);
+        let available_height = (available_rect.height - position.y).max(0.0);
 
         // If we are expected to wrap text, but there's not enough space to
         // render a missing character, don't attempt anything.
@@ -1449,7 +1620,7 @@ impl Ctrl<'_> {
             width: f32,
         }
 
-        let mut lines: ArrayVec<Line, 1024> = ArrayVec::new();
+        let mut lines: Vec<Line, _> = Vec::new_in(&self.ui.temp_allocator);
 
         let mut last_char_was_whitespace = false;
         let mut begun_word: bool;
@@ -1606,15 +1777,12 @@ impl Ctrl<'_> {
         //
         let line_metrics = self.ui.font_atlas.line_metrics();
         let (atlas_width, atlas_height) = {
-            let atlas_extents = self.ui.font_atlas.image_extents();
-            (f32::from(atlas_extents.0), f32::from(atlas_extents.1))
+            let atlas_size = self.ui.font_atlas.image_size();
+            (f32::from(atlas_size.0), f32::from(atlas_size.1))
         };
         let (atlas_cell_width, atlas_cell_height) = {
-            let atlas_cell_extents = self.ui.font_atlas.grid_cell_extents();
-            (
-                f32::from(atlas_cell_extents.0),
-                f32::from(atlas_cell_extents.1),
-            )
+            let atlas_cell_size = self.ui.font_atlas.grid_cell_size();
+            (f32::from(atlas_cell_size.0), f32::from(atlas_cell_size.1))
         };
 
         let mut position_y = if lines.len() as f32 * line_metrics.new_line_size < available_height {
@@ -1656,14 +1824,14 @@ impl Ctrl<'_> {
                 let glyph_xmin = glyph_info.metrics.xmin as f32;
                 let glyph_ymin = glyph_info.metrics.ymin as f32;
 
-                let position_rect = Rect::new(
+                let rect = Rect::new(
                     position_x + glyph_xmin,
                     position_y + line_metrics.ascent - glyph_height - glyph_ymin,
                     glyph_width,
                     glyph_height,
                 );
 
-                let tex_coord_rect = Rect::new(
+                let texture_rect = Rect::new(
                     f32::from(glyph_info.grid_x) * atlas_cell_width / atlas_width,
                     f32::from(glyph_info.grid_y) * atlas_cell_height / atlas_height,
                     glyph_width / atlas_width,
@@ -1674,20 +1842,20 @@ impl Ctrl<'_> {
                 // sense here? We also do it later, when translating to the
                 // low-level draw list, but we could have less things to
                 // translate.
-                self.ui.draw_commands.push(DrawCommand::DrawRect {
-                    position_rect,
-                    tex_coord_rect,
-                    color,
+                self.ui.draw_primitives.push(DrawPrimitive::Rect {
+                    rect,
+                    texture_rect,
                     texture_id: self.ui.font_atlas_texture_id,
+                    color,
                 });
 
                 parent.draw_range.end += 1;
-                if extend_content_rect {
+                if include_in_inline_content_rect {
                     parent.inline_content_rect = Some(
                         parent
                             .inline_content_rect
-                            .map(|r| r.extend_by_rect(position_rect))
-                            .unwrap_or(position_rect),
+                            .map(|r| r.extend_by_rect(rect))
+                            .unwrap_or(rect),
                     );
                 }
 

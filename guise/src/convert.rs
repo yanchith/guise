@@ -1,4 +1,3 @@
-use core::convert::TryInto;
 use core::fmt::Debug;
 
 /// Losslessly converts `n` to `u16` using `TryFrom` or panics.
