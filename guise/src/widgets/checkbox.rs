@@ -1,7 +1,8 @@
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn checkbox(frame: &mut Frame, id: u32, theme: &Theme, value: &mut bool, label: &str) -> bool {
+pub fn checkbox(frame: &mut Frame, id: u32, value: &mut bool, label: &str) -> bool {
+    let theme = &Theme::DEFAULT;
     Checkbox::new(id, theme, value, label).show(frame)
 }
 

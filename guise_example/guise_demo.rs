@@ -48,68 +48,34 @@ pub struct State {
 
 pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
     let time = stats.running_duration.as_secs_f32();
-    let theme = &guise::Theme::DEFAULT;
     let mut s: ArrayString<1024> = ArrayString::new();
 
-    if guise::begin_window(
-        frame,
-        line!(),
-        theme,
-        guise::Layout::Vertical,
-        "26%",
-        "1%",
-        "73%",
-        "98%",
-    )
-    .is_some()
     {
-        if guise::begin_panel(
-            frame,
-            line!(),
-            theme,
-            guise::Layout::Horizontal,
-            "100%",
-            "50%",
-        )
-        .is_some()
+        guise::begin_window(frame, line!(), "26%", "1%", "73%", "98%");
+
         {
-            if guise::begin_panel(
-                frame,
-                line!(),
-                theme,
-                guise::Layout::Vertical,
-                "50%",
-                "100%",
-            )
-            .is_some()
+            guise::begin_panel_ex(frame, line!(), "100%", "50%", guise::Layout::Horizontal);
+
             {
-                if guise::begin_panel(
-                    frame,
-                    line!(),
-                    theme,
-                    guise::Layout::Vertical,
-                    "100%",
-                    "15%",
-                ).is_some() {
+                guise::begin_panel(frame, line!(), "50%", "100%");
+
+                {
+                    guise::begin_panel(frame, line!(), "100%", "15%");
+
                     guise::checkbox(
                         frame,
                         line!(),
-                        theme,
                         &mut state.poll_platform_events,
                         "Poll Platform Events",
                     );
 
                     guise::end_panel(frame);
                 }
-                if let Some(mut ctrl) = guise::begin_panel(
-                    frame,
-                    line!(),
-                    theme,
-                    guise::Layout::Vertical,
-                    "100%",
-                    "35%",
-                ) {
-                    ctrl.draw_text(
+
+                {
+                    let mut panel_ctrl = guise::begin_panel(frame, line!(), "100%", "35%");
+
+                    panel_ctrl.draw_text(
                         true,
                         guise::Vec2::ZERO,
                         fmt!(
@@ -128,15 +94,10 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     guise::end_panel(frame);
                 }
 
-                if let Some(mut ctrl) = guise::begin_panel(
-                    frame,
-                    line!(),
-                    theme,
-                    guise::Layout::Vertical,
-                    "100%",
-                    "50%",
-                ) {
-                    ctrl.draw_text(
+                {
+                    let mut panel_ctrl = guise::begin_panel(frame, line!(), "100%", "50%");
+
+                    panel_ctrl.draw_text(
                         true,
                         guise::Vec2::ZERO,
                         fmt!(
@@ -161,27 +122,15 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                 guise::end_panel(frame);
             }
 
-            if guise::begin_panel(
-                frame,
-                line!(),
-                theme,
-                guise::Layout::Vertical,
-                "50%",
-                "100%",
-            )
-            .is_some()
             {
-                if guise::button(
-                    frame,
-                    0,
-                    theme,
-                    "A button with multiline text.\n And a footnote.",
-                ) {
+                guise::begin_panel(frame, line!(), "50%", "100%");
+
+                if guise::button(frame, 0, "A button with multiline text.\n And a footnote.") {
                     state.button_click_count += 1;
                 }
 
                 for i in 1..=50 {
-                    if guise::button(frame, i, theme, fmt!(s, "Button {}", i)) {
+                    if guise::button(frame, i, fmt!(s, "Button {}", i)) {
                         state.button_click_count += 1;
                     }
                 }
@@ -192,35 +141,21 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
             guise::end_panel(frame);
         }
 
-        if guise::begin_panel(
-            frame,
-            line!(),
-            theme,
-            guise::Layout::Horizontal,
-            "100%",
-            "50%",
-        )
-        .is_some()
         {
-            if guise::begin_panel(
-                frame,
-                line!(),
-                theme,
-                guise::Layout::Vertical,
-                "50%",
-                "100%",
-            )
-            .is_some()
+            guise::begin_panel_ex(frame, line!(), "100%", "50%", guise::Layout::Horizontal);
+
             {
+                guise::begin_panel(frame, line!(), "50%", "100%");
+
                 for i in 1..=3 {
                     let i = i * 3;
                     let j = i + 1;
                     let k = i + 2;
 
-                    if let Some(mut ctrl) =
-                        guise::begin_panel(frame, i, theme, guise::Layout::Vertical, "100%", 100.0)
                     {
-                        ctrl.draw_text(
+                        let mut panel_ctrl = guise::begin_panel(frame, i, "100%", 100.0);
+
+                        panel_ctrl.draw_text(
                             true,
                             guise::Vec2::ZERO,
                             TEXT,
@@ -232,10 +167,10 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                         guise::end_panel(frame);
                     }
 
-                    if let Some(mut ctrl) =
-                        guise::begin_panel(frame, j, theme, guise::Layout::Vertical, "100%", 100.0)
                     {
-                        ctrl.draw_text(
+                        let mut panel_ctrl = guise::begin_panel(frame, j, "100%", 100.0);
+
+                        panel_ctrl.draw_text(
                             true,
                             guise::Vec2::ZERO,
                             TEXT,
@@ -244,13 +179,14 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                             guise::Wrap::Word,
                             0xffffffff,
                         );
+
                         guise::end_panel(frame);
                     }
 
-                    if let Some(mut ctrl) =
-                        guise::begin_panel(frame, k, theme, guise::Layout::Vertical, "100%", 100.0)
                     {
-                        ctrl.draw_text(
+                        let mut panel_ctrl = guise::begin_panel(frame, k, "100%", 100.0);
+
+                        panel_ctrl.draw_text(
                             true,
                             guise::Vec2::ZERO,
                             TEXT,
@@ -259,6 +195,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                             guise::Wrap::Word,
                             0xffffffff,
                         );
+
                         guise::end_panel(frame);
                     }
                 }
@@ -266,15 +203,10 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                 guise::end_panel(frame);
             }
 
-            if let Some(mut ctrl) = guise::begin_panel(
-                frame,
-                line!(),
-                theme,
-                guise::Layout::Vertical,
-                "50%",
-                "100%",
-            ) {
-                let extents = ctrl.inner_extents();
+            {
+                let mut panel_ctrl = guise::begin_panel(frame, line!(), "50%", "100%");
+
+                let extents = panel_ctrl.inner_extents();
                 let width = extents.x;
                 let height = extents.y;
                 let column_width = width / GRAPH_LEN as f32;
@@ -298,14 +230,13 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     state.graph_vertex_count_max = current_draw_list_vertex_count;
                 }
 
-                // NOTE(yan): Some Casey vibes right here.
                 for i in 0..GRAPH_LEN {
                     let graph_frame_build_max = if state.graph_frame_build_max == 0.0 {
                         1.0
                     } else {
                         state.graph_frame_build_max
                     };
-                    ctrl.draw_rect(
+                    panel_ctrl.draw_rect(
                         false,
                         guise::Rect::new(
                             i as f32 * column_width,
@@ -327,7 +258,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     } else {
                         state.graph_command_count_max as f32
                     };
-                    ctrl.draw_rect(
+                    panel_ctrl.draw_rect(
                         false,
                         guise::Rect::new(
                             i as f32 * column_width,
@@ -351,7 +282,7 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
                     } else {
                         state.graph_vertex_count_max as f32
                     };
-                    ctrl.draw_rect(
+                    panel_ctrl.draw_rect(
                         false,
                         guise::Rect::new(
                             i as f32 * column_width,
@@ -380,18 +311,19 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
         guise::end_window(frame);
     }
 
-    if let Some(mut ctrl) = guise::begin_window(
-        frame,
-        line!(),
-        theme,
-        guise::Layout::Free,
-        "1%",
-        "1%",
-        "23%",
-        "48%",
-    ) {
-        let inner_extents = ctrl.inner_extents();
-        ctrl.draw_rect(
+    {
+        let mut window_ctrl = guise::begin_window_ex(
+            frame,
+            line!(),
+            "1%",
+            "1%",
+            "23%",
+            "48%",
+            guise::Layout::Free,
+        );
+
+        let inner_extents = window_ctrl.inner_extents();
+        window_ctrl.draw_rect(
             false,
             guise::Rect::new(0.0, 0.0, inner_extents.x, inner_extents.y),
             guise::Rect::UNIT,
@@ -399,17 +331,9 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
             0,
         );
 
-        if let Some(mut ctrl) = guise::begin_window(
-            frame,
-            line!(),
-            theme,
-            guise::Layout::Vertical,
-            5.0,
-            5.0,
-            100.0,
-            50.0,
-        ) {
-            ctrl.draw_text(
+        {
+            let mut window_ctrl = guise::begin_window(frame, line!(), 5.0, 5.0, 100.0, 50.0);
+            window_ctrl.draw_text(
                 false,
                 guise::Vec2::ZERO,
                 "Hello",
@@ -420,17 +344,10 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
             );
             guise::end_window(frame);
         }
-        if let Some(mut ctrl) = guise::begin_window(
-            frame,
-            line!(),
-            theme,
-            guise::Layout::Vertical,
-            100.0,
-            100.0,
-            150.0,
-            50.0,
-        ) {
-            ctrl.draw_text(
+
+        {
+            let mut window_ctrl = guise::begin_window(frame, line!(), 100.0, 100.0, 150.0, 50.0);
+            window_ctrl.draw_text(
                 false,
                 guise::Vec2::ZERO,
                 "Traveller",
@@ -441,17 +358,10 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
             );
             guise::end_window(frame);
         }
-        if let Some(mut ctrl) = guise::begin_window(
-            frame,
-            line!(),
-            theme,
-            guise::Layout::Vertical,
-            50.0,
-            250.0,
-            200.0,
-            100.0,
-        ) {
-            ctrl.draw_text(
+
+        {
+            let mut window_ctrl = guise::begin_window(frame, line!(), 50.0, 250.0, 200.0, 100.0);
+            window_ctrl.draw_text(
                 false,
                 guise::Vec2::ZERO,
                 "「こんにちは 世界」",
@@ -466,33 +376,24 @@ pub fn draw_ui(frame: &mut guise::Frame, stats: &Stats, state: &mut State) {
         guise::end_window(frame);
     }
 
-    if guise::begin_window(
-        frame,
-        line!(),
-        theme,
-        guise::Layout::Vertical,
-        "1%",
-        "51%",
-        "23%",
-        "48%",
-    )
-    .is_some()
     {
-        let (_, s1) = guise::text_input(frame, line!(), theme, &mut state.text_input_text_heap);
+        guise::begin_window(frame, line!(), "1%", "51%", "23%", "48%");
+
+        let (_, s1) = guise::text_input(frame, line!(), &mut state.text_input_text_heap);
         match s1 {
             guise::TextInputSubmit::None => (),
             guise::TextInputSubmit::Submit => state.text_input_submit_count += 1,
             guise::TextInputSubmit::Cancel => state.text_input_cancel_count += 1,
         }
 
-        let (_, s2) = guise::text_input(frame, line!(), theme, &mut state.text_input_text_inline);
+        let (_, s2) = guise::text_input(frame, line!(), &mut state.text_input_text_inline);
         match s2 {
             guise::TextInputSubmit::None => (),
             guise::TextInputSubmit::Submit => state.text_input_submit_count += 1,
             guise::TextInputSubmit::Cancel => state.text_input_cancel_count += 1,
         }
 
-        if guise::button(frame, line!(), theme, "Clear") {
+        if guise::button(frame, line!(), "Clear") {
             state.text_input_text_heap.clear();
             state.text_input_text_inline.clear();
         }

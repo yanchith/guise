@@ -8,17 +8,34 @@ use crate::widgets::theme::Theme;
 pub fn begin_panel<'f, W, H>(
     frame: &'f mut Frame,
     id: u32,
-    theme: &Theme,
-    layout: Layout,
     width: W,
     height: H,
-) -> Option<Ctrl<'f>>
+) -> Ctrl<'f>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
 {
+    let theme = &Theme::DEFAULT;
+    let layout = Layout::Vertical;
+    Panel::new(id, theme, layout, width, height).begin(frame)
+}
+
+pub fn begin_panel_ex<'f, W, H>(
+    frame: &'f mut Frame,
+    id: u32,
+    width: W,
+    height: H,
+    layout: Layout,
+) -> Ctrl<'f>
+where
+    W: TryInto<Size>,
+    H: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    <H as TryInto<Size>>::Error: Debug,
+{
+    let theme = &Theme::DEFAULT;
     Panel::new(id, theme, layout, width, height).begin(frame)
 }
 
@@ -57,7 +74,7 @@ impl<'a> Panel<'a> {
         }
     }
 
-    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Option<Ctrl<'f>> {
+    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Ctrl<'f> {
         let parent_extents = frame.ctrl_inner_extents();
 
         let mut ctrl = frame.push_ctrl(self.id);
@@ -77,8 +94,7 @@ impl<'a> Panel<'a> {
         ctrl.set_draw_self_border_color(self.theme.panel_border_color);
         ctrl.set_draw_self_background_color(self.theme.panel_background_color);
 
-        // TODO(yan): Will this ever be None?
-        Some(ctrl)
+        ctrl
     }
 
     pub fn end(&self, frame: &mut Frame) {

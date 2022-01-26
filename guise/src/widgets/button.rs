@@ -1,7 +1,8 @@
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn button(frame: &mut Frame, id: u32, theme: &Theme, label: &str) -> bool {
+pub fn button(frame: &mut Frame, id: u32, label: &str) -> bool {
+    let theme = &Theme::DEFAULT;
     Button::new(id, theme, label).show(frame)
 }
 

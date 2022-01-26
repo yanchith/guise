@@ -13,13 +13,11 @@ const ACTIVITY_RESIZE: u8 = 2;
 pub fn begin_window<'f, X, Y, W, H>(
     frame: &'f mut Frame,
     id: u32,
-    theme: &Theme,
-    layout: Layout,
     x: X,
     y: Y,
     width: W,
     height: H,
-) -> Option<Ctrl<'f>>
+) -> Ctrl<'f>
 where
     X: TryInto<Size>,
     Y: TryInto<Size>,
@@ -30,6 +28,31 @@ where
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
 {
+    let theme = &Theme::DEFAULT;
+    let layout = Layout::Vertical;
+    Window::new(id, theme, layout, x, y, width, height).begin(frame)
+}
+
+pub fn begin_window_ex<'f, X, Y, W, H>(
+    frame: &'f mut Frame,
+    id: u32,
+    x: X,
+    y: Y,
+    width: W,
+    height: H,
+    layout: Layout,
+) -> Ctrl<'f>
+where
+    X: TryInto<Size>,
+    Y: TryInto<Size>,
+    W: TryInto<Size>,
+    H: TryInto<Size>,
+    <X as TryInto<Size>>::Error: Debug,
+    <Y as TryInto<Size>>::Error: Debug,
+    <W as TryInto<Size>>::Error: Debug,
+    <H as TryInto<Size>>::Error: Debug,
+{
+    let theme = &Theme::DEFAULT;
     Window::new(id, theme, layout, x, y, width, height).begin(frame)
 }
 
@@ -84,7 +107,7 @@ impl<'a> Window<'a> {
         }
     }
 
-    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Option<Ctrl<'f>> {
+    pub fn begin<'f>(&self, frame: &'f mut Frame) -> Ctrl<'f> {
         let parent_extents = frame.ctrl_inner_extents();
         let cursor_position = frame.window_cursor_position();
         let lmb_pressed = frame.window_inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
@@ -254,8 +277,7 @@ impl<'a> Window<'a> {
             0,
         );
 
-        // TODO(yan): Will this ever be None?
-        Some(ctrl)
+        ctrl
     }
 
     pub fn end(&self, frame: &mut Frame) {

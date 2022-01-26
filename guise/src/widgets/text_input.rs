@@ -28,15 +28,11 @@ pub enum TextInputSubmit {
     Cancel,
 }
 
-pub fn text_input<T>(
-    frame: &mut Frame,
-    id: u32,
-    theme: &Theme,
-    text: &mut T,
-) -> (bool, TextInputSubmit)
+pub fn text_input<T>(frame: &mut Frame, id: u32, text: &mut T) -> (bool, TextInputSubmit)
 where
     T: EditableText,
 {
+    let theme = &Theme::DEFAULT;
     TextInput::new(id, theme, text).show(frame)
 }
 
