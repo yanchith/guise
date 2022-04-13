@@ -281,6 +281,12 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
         font_bytes: &[u8],
         font_unicode_range_flags: UnicodeRangeFlags,
         font_size: f32,
+        // Maximum window scale factor the rasterizer is prepared for. If
+        // displaying on a single monitor, that display's scale factor should be
+        // used. If there are multiple monitors with different scales, pick
+        // highest for sharpest looking fonts, or lower, if memory or speed is
+        // an issue.
+        font_rasterization_scale_factor: f32,
         perm_allocator: A,
         temp_allocator: TA,
     ) -> Self {
@@ -293,6 +299,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             font_bytes,
             font_unicode_range_flags,
             font_size,
+            font_rasterization_scale_factor,
             a1,
             &temp_allocator,
         );
@@ -1597,20 +1604,16 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
             vertical_align
         };
 
-        let available_rect = parent.rect.inset(2.0 * parent.border + 2.0 * parent.padding);
+        let available_rect = parent
+            .rect
+            .inset(2.0 * parent.border + 2.0 * parent.padding);
         let available_width = (available_rect.width - position.x).max(0.0);
         let available_height = (available_rect.height - position.y).max(0.0);
 
         // If we are expected to wrap text, but there's not enough space to
         // render a missing character, don't attempt anything.
         if wrap != Wrap::None
-            && self
-                .ui
-                .font_atlas
-                .missing_glyph_info()
-                .metrics
-                .advance_width
-                > available_width
+            && self.ui.font_atlas.missing_glyph_info().advance_width > available_width
         {
             return;
         }
@@ -1656,13 +1659,13 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
                 // If we are expected to wrap text, but there's not enough space
                 // to render our current character, use metrics for the
                 // replacement character instead.
-                if wrap != Wrap::None && info.metrics.advance_width > available_width {
+                if wrap != Wrap::None && info.advance_width > available_width {
                     self.ui.font_atlas.missing_glyph_info()
                 } else {
                     info
                 }
             };
-            let glyph_advance_width = glyph_info.metrics.advance_width;
+            let glyph_advance_width = glyph_info.advance_width;
 
             if line_width + glyph_advance_width > available_width {
                 match wrap {
@@ -1672,7 +1675,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
                             let mut width = 0.0;
                             for c in slice.chars() {
-                                width += self.ui.font_atlas.glyph_info(c).metrics.advance_width;
+                                width += self.ui.font_atlas.glyph_info(c).advance_width;
                             }
 
                             width
@@ -1748,7 +1751,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
                 }
 
                 start += c.len_utf8();
-                trim_width += self.ui.font_atlas.glyph_info(c).metrics.advance_width;
+                trim_width += self.ui.font_atlas.glyph_info(c).advance_width;
             }
 
             let mut rev_iter = line_slice.chars().rev().peekable();
@@ -1759,7 +1762,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
                 if rev_iter.peek().is_some() {
                     end -= c.len_utf8();
-                    trim_width += self.ui.font_atlas.glyph_info(c).metrics.advance_width;
+                    trim_width += self.ui.font_atlas.glyph_info(c).advance_width;
                 }
             }
 
@@ -1817,25 +1820,20 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
             };
 
             for c in line_slice.chars() {
-                let glyph_info = self.ui.font_atlas.glyph_info(c);
-                let glyph_advance_width = glyph_info.metrics.advance_width as f32;
-                let glyph_width = glyph_info.metrics.width as f32;
-                let glyph_height = glyph_info.metrics.height as f32;
-                let glyph_xmin = glyph_info.metrics.xmin as f32;
-                let glyph_ymin = glyph_info.metrics.ymin as f32;
+                let info = self.ui.font_atlas.glyph_info(c);
 
                 let rect = Rect::new(
-                    position_x + glyph_xmin,
-                    position_y + line_metrics.ascent - glyph_height - glyph_ymin,
-                    glyph_width,
-                    glyph_height,
+                    position_x + info.xmin as f32,
+                    position_y + line_metrics.ascent - info.height - info.ymin as f32,
+                    info.width,
+                    info.height,
                 );
 
                 let texture_rect = Rect::new(
-                    f32::from(glyph_info.grid_x) * atlas_cell_width / atlas_width,
-                    f32::from(glyph_info.grid_y) * atlas_cell_height / atlas_height,
-                    glyph_width / atlas_width,
-                    glyph_height / atlas_height,
+                    f32::from(info.grid_x) * atlas_cell_width / atlas_width,
+                    f32::from(info.grid_y) * atlas_cell_height / atlas_height,
+                    info.atlas_width / atlas_width,
+                    info.atlas_height / atlas_height,
                 );
 
                 // TODO(yan): @Speed @Memory Does early software scissor make
@@ -1859,7 +1857,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
                     );
                 }
 
-                position_x += glyph_advance_width;
+                position_x += info.advance_width;
             }
 
             position_y += line_metrics.new_line_size;

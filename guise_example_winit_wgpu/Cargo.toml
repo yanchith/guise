@@ -14,7 +14,7 @@ license = "MIT"
 [dependencies]
 arrayvec = "0.7.2"
 bytemuck = { version = "1.7.3", features = ["derive"] }
-guise = { path = "../guise", features = ["log", "font_proggy_clean"] }
+guise = { path = "../guise", features = ["log", "font_proggy_clean", "font_roboto", "font_ibm_plex_mono"] }
 log = "0.4.14"
 pollster = "0.2.5"
 pretty_env_logger = "0.4.0"
