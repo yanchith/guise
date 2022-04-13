@@ -131,11 +131,15 @@ where
             {
                 guise::begin_panel(frame, line!(), "50%", "100%");
 
-                if guise::button(frame, 0, "A button with multiline text.\n And a footnote.") {
+                if guise::Button::new(0, "<image>").set_image(0).show(frame) {
                     state.button_click_count += 1;
                 }
 
-                for i in 1..=50 {
+                if guise::button(frame, 1, "A button with multiline text.\n And a footnote.") {
+                    state.button_click_count += 1;
+                }
+
+                for i in 2..=50 {
                     if guise::button(frame, i, fmt!(s, "Button {}", i)) {
                         state.button_click_count += 1;
                     }
@@ -327,7 +331,8 @@ where
             let mut window_ctrl = guise::begin_window(frame, line!(), 5.0, 5.0, 100.0, 50.0);
             window_ctrl.draw_text_ex(
                 false,
-                guise::Vec2::ZERO,
+                None,
+                0.0,
                 "Hello",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -341,7 +346,8 @@ where
             let mut window_ctrl = guise::begin_window(frame, line!(), 100.0, 100.0, 150.0, 50.0);
             window_ctrl.draw_text_ex(
                 false,
-                guise::Vec2::ZERO,
+                None,
+                0.0,
                 "Traveller",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -355,7 +361,8 @@ where
             let mut window_ctrl = guise::begin_window(frame, line!(), 50.0, 250.0, 200.0, 100.0);
             window_ctrl.draw_text_ex(
                 false,
-                guise::Vec2::ZERO,
+                None,
+                0.0,
                 "「こんにちは 世界」",
                 guise::Align::Center,
                 guise::Align::Center,

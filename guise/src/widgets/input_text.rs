@@ -3,7 +3,7 @@ use core::ops::Deref;
 
 use arrayvec::ArrayString;
 
-use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
 // TODO(yan): This needs features. A lot of features. Arrow key and
@@ -72,13 +72,15 @@ where
             ArrayString::from(frame.received_characters()).unwrap();
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
+        let border = self.theme.input_text_border;
+        let padding = self.theme.input_text_padding;
 
         let mut ctrl = frame.push_ctrl(self.id);
         ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.input_text_height));
-        ctrl.set_padding(self.theme.input_text_padding);
-        ctrl.set_border(self.theme.input_text_border);
+        ctrl.set_padding(padding);
+        ctrl.set_border(border);
         ctrl.set_margin(self.theme.input_text_margin);
 
         let hovered = ctrl.hovered();
@@ -147,7 +149,8 @@ where
         ctrl.set_draw_self_background_color(background_color);
         ctrl.draw_text_ex(
             true,
-            Vec2::ZERO,
+            None,
+            border + padding,
             self.text,
             Align::Start,
             Align::Center,

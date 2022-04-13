@@ -260,21 +260,11 @@ impl<'a> Window<'a> {
         ctrl.set_draw_self_border_color(border_color);
         ctrl.set_draw_self_background_color(background_color);
 
-        // TODO(yan): Would be great for simplicity if draw_rect used the same
-        // coordinate system as we use for positioning controls. Currently we
-        // position using border-box, but draw_rect uses content-box. We'd still
-        // clip by at border though. Beware text!
         ctrl.draw_rect(
             false,
             Rect::new(
-                width
-                    - resize_handle_dimension
-                    - self.theme.window_border
-                    - self.theme.window_padding,
-                height
-                    - resize_handle_dimension
-                    - self.theme.window_border
-                    - self.theme.window_padding,
+                width - resize_handle_dimension,
+                height - resize_handle_dimension,
                 resize_handle_dimension,
                 resize_handle_dimension,
             ),

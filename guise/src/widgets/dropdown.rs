@@ -2,7 +2,7 @@ use core::alloc::Allocator;
 use core::convert::AsRef;
 
 use crate::convert::cast_u32;
-use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::button::button;
 use crate::widgets::theme::Theme;
 
@@ -149,7 +149,8 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
 
         ctrl.draw_text_ex(
             false,
-            Vec2::ZERO,
+            None,
+            0.0,
             label,
             Align::Center,
             Align::Center,

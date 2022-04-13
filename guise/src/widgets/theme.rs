@@ -154,9 +154,9 @@ impl Theme {
         text_border_color: 0xffffff00,
         text_background_color: 0xffffff00,
         text_text_color: 0xffffffff,
-        text_margin: 5.0,
+        text_margin: 0.0,
         text_border: 0.0,
-        text_padding: 2.0,
+        text_padding: 10.0,
 
         input_text_border_color: 0xa0a0a050,
         input_text_border_color_hovered: 0xa0a0a070,

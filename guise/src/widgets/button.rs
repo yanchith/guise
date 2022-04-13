@@ -1,6 +1,6 @@
 use core::alloc::Allocator;
 
-use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
 pub fn button<A, TA>(frame: &mut Frame<A, TA>, id: u32, label: &str) -> bool
@@ -135,7 +135,7 @@ impl<'a> Button<'a> {
         if let Some(image_texture_id) = self.image_texture_id {
             ctrl.draw_rect(
                 false,
-                Rect::new(-border, -border, width, height),
+                Rect::new(0.0, 0.0, width, height),
                 Rect::ONE,
                 0xffffffff,
                 image_texture_id,
@@ -143,7 +143,8 @@ impl<'a> Button<'a> {
         } else {
             ctrl.draw_text_ex(
                 false,
-                Vec2::ZERO,
+                None,
+                0.0,
                 self.label,
                 Align::Center,
                 Align::Center,

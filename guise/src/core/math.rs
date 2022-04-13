@@ -17,6 +17,10 @@ impl Vec2 {
         Self { x, y }
     }
 
+    pub fn splat(v: f32) -> Self {
+        Self { x: v, y: v }
+    }
+
     pub fn length_squared(&self) -> f32 {
         self.x * self.x + self.y * self.y
     }
@@ -215,6 +219,15 @@ impl Rect {
             y: min_point.y,
             width: size.x,
             height: size.y,
+        }
+    }
+
+    pub fn resize(&self, amount: Vec2) -> Self {
+        Self {
+            x: self.x,
+            y: self.y,
+            width: f32::max(self.width + amount.x, 0.0),
+            height: f32::max(self.height + amount.y, 0.0),
         }
     }
 

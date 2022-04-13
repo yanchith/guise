@@ -13,5 +13,7 @@ pub use self::font_atlas::FONT_IBM_PLEX_SANS_JP;
 pub use self::font_atlas::FONT_PROGGY_CLEAN;
 #[cfg(feature = "font_roboto")]
 pub use self::font_atlas::FONT_ROBOTO;
+#[cfg(feature = "font_liberation_mono")]
+pub use self::font_atlas::FONT_LIBERATION_MONO;
 pub use self::math::{Rect, Vec2};
 pub use self::ui::{Align, Ctrl, CtrlFlags, CtrlState, Frame, Inputs, Layout, Ui, Wrap};

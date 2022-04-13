@@ -1,6 +1,6 @@
 use core::alloc::Allocator;
 
-use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
 pub fn checkbox<A, TA>(frame: &mut Frame<A, TA>, id: u32, value: &mut bool, label: &str) -> bool
@@ -88,10 +88,19 @@ impl<'a> Checkbox<'a> {
             ),
         };
 
+        const CHECKBOX_LEFT_PADDING: f32 = 5.0;
+        const CHECKBOX_INNER_DIM: f32 = 12.0;
+        const CHECKBOX_OUTER_DIM: f32 = 18.0;
+
         ctrl.set_draw_self(false);
         ctrl.draw_rect(
             false,
-            Rect::new(5.0, 7.5, 20.0, 20.0),
+            Rect::new(
+                CHECKBOX_LEFT_PADDING,
+                0.5 * self.theme.checkbox_height - 0.5 * CHECKBOX_OUTER_DIM,
+                CHECKBOX_OUTER_DIM,
+                CHECKBOX_OUTER_DIM,
+            ),
             Rect::ZERO,
             handle_color,
             0,
@@ -100,7 +109,12 @@ impl<'a> Checkbox<'a> {
         if *self.value {
             ctrl.draw_rect(
                 false,
-                Rect::new(10.0, 12.5, 10.0, 10.0),
+                Rect::new(
+                    CHECKBOX_LEFT_PADDING + 0.5 * (CHECKBOX_OUTER_DIM - CHECKBOX_INNER_DIM),
+                    0.5 * self.theme.checkbox_height - 0.5 * CHECKBOX_INNER_DIM,
+                    CHECKBOX_INNER_DIM,
+                    CHECKBOX_INNER_DIM,
+                ),
                 Rect::ZERO,
                 0xffffffff,
                 0,
@@ -109,7 +123,13 @@ impl<'a> Checkbox<'a> {
 
         ctrl.draw_text_ex(
             false,
-            Vec2::new(40.0, 0.0),
+            Some(Rect::new(
+                40.0,
+                0.0,
+                f32::max(width - 40.0, 0.0),
+                self.theme.checkbox_height,
+            )),
+            0.0,
             self.label,
             Align::Start,
             Align::Center,

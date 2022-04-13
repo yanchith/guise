@@ -1,10 +1,7 @@
 use core::alloc::Allocator;
 
-use crate::core::{Align, CtrlFlags, Frame, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
-
-const FLAGS: CtrlFlags =
-    CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER | CtrlFlags::SHRINK_TO_FIT_INLINE_CONTENT;
 
 pub fn text<A, TA>(frame: &mut Frame<A, TA>, id: u32, text: &str)
 where
@@ -58,20 +55,30 @@ impl<'a> Text<'a> {
     {
         let parent_size = frame.ctrl_inner_size();
 
+        let margin = self.theme.text_margin;
+        let border = self.theme.text_border;
+        let padding = self.theme.text_padding;
+
         let mut ctrl = frame.push_ctrl(self.id);
-        ctrl.set_flags(FLAGS);
+        // NB: Text doesn't capture scrolling, because it actually slightly
+        // overflows - by the value of its border (and padding, if we had set
+        // it), but because Ctrl::draw_text_ex does its own aligning and
+        // insetting, this is never visible.
+        ctrl.set_flags(CtrlFlags::ALL_SHRINK_TO_FIT);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, parent_size.x, parent_size.y));
-        ctrl.set_padding(self.theme.text_padding);
-        ctrl.set_border(self.theme.text_border);
-        ctrl.set_margin(self.theme.text_margin);
+        // NB: Padding is not set, because there's no child controls, and the
+        // text layout computes uses its own inset.
+        ctrl.set_border(border);
+        ctrl.set_margin(margin);
 
         ctrl.set_draw_self(true);
         ctrl.set_draw_self_border_color(self.theme.text_border_color);
         ctrl.set_draw_self_background_color(self.theme.text_background_color);
         ctrl.draw_text_ex(
             true,
-            Vec2::ZERO,
+            None,
+            border + padding,
             self.text,
             self.horizontal_align,
             // Vertical align does not make sense with shrunk-to-fit controls.

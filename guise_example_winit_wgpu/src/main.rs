@@ -64,8 +64,10 @@ fn main() {
             logical_size.width,
             logical_size.height,
             guise::FONT_IBM_PLEX_MONO,
-            // guise::FONT_ROBOTO,
+            // guise::FONT_IBM_PLEX_SANS_JP,
             // guise::FONT_PROGGY_CLEAN,
+            // guise::FONT_ROBOTO,
+            // guise::FONT_LIBERATION_MONO,
             guise::UnicodeRangeFlags::ALL,
             14.0,
             // TODO(yan): If we increase the scale factor to something way above
@@ -137,8 +139,7 @@ fn main() {
         };
 
         match event {
-            winit::event::Event::NewEvents(start_cause) => {
-                log::trace!("Frame start cause: {:?}", start_cause);
+            winit::event::Event::NewEvents(_) => {
                 frame_count += 1;
                 time = Instant::now();
             }
@@ -320,9 +321,7 @@ fn main() {
 
                 window.request_redraw();
             }
-            winit::event::Event::RedrawRequested(window_id) => {
-                log::trace!("Redraw requested for window {:?}", window_id);
-
+            winit::event::Event::RedrawRequested(_) => {
                 let physical_size = window.inner_size();
                 if physical_size.width == 0 || physical_size.height == 0 {
                     return;

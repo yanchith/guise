@@ -16,6 +16,7 @@ font_ibm_plex_mono = []
 font_ibm_plex_sans_jp = []
 font_proggy_clean = []
 font_roboto = []
+font_liberation_mono = []
 default = []
 
 [dependencies]

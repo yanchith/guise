@@ -3,7 +3,7 @@ use core::fmt::Write;
 
 use arrayvec::ArrayString;
 
-use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Vec2, Wrap};
+use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
 // TODO(yan): Do DragInt2, DragInt3, DragInt4.
@@ -165,7 +165,8 @@ impl<'a> DragInt<'a> {
         let _ = write!(text, "{}", *self.value);
         ctrl.draw_text_ex(
             true,
-            Vec2::ZERO,
+            None,
+            0.0,
             &text,
             Align::Center,
             Align::Center,

@@ -147,20 +147,40 @@ impl CtrlFlags {
     /// flag.
     pub const CAPTURE_ACTIVE: Self = Self(0x04);
 
-    /// Whether to attempt shrinking the control's rect to the size of its
-    /// inline contents (text or geometry) before layout and render. This will
-    /// only ever shrink, not grow.
+    /// Whether to attempt shrinking the control's rect width to the width of
+    /// its inline contents (text or geometry) before layout and render. This
+    /// will only ever shrink and never grow.
     ///
     /// One usecase is creating controls that take up space based on their
-    /// contents. They can start with rects occupying all available space (the
-    /// parent's inner size) and use this flag to shrink their rect dynamically.
-    pub const SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x08);
+    /// contents. They can start with rects occupying all available width (the
+    /// parent's inner height) and use this flag to shrink their rect
+    /// dynamically.
+    ///
+    /// This works, becuase the layout of inline content is immediately
+    /// available when a control is popped.
+    pub const HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x08);
+
+    /// Whether to attempt shrinking the control's rect height to the height of
+    /// its inline contents (text or geometry) before layout and render. This
+    /// will only ever shrink and never grow.
+    ///
+    /// One usecase is creating controls that take up space based on their
+    /// contents. They can start with rects occupying all available height (the
+    /// parent's inner height) and use this flag to shrink their rect
+    /// dynamically.
+    ///
+    /// This works, becuase the layout of inline content is immediately
+    /// available when a control is popped.
+    pub const VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x10);
 
     pub const NONE: Self = Self(0);
     pub const ALL: Self = Self::CAPTURE_SCROLL
         | Self::CAPTURE_HOVER
         | Self::CAPTURE_ACTIVE
-        | Self::SHRINK_TO_FIT_INLINE_CONTENT;
+        | Self::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT
+        | Self::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT;
+    pub const ALL_SHRINK_TO_FIT: Self =
+        Self::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT | Self::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT;
 
     pub fn bits(self) -> u32 {
         self.0
@@ -229,13 +249,17 @@ struct CtrlNode {
     draw_self_background_color: u32,
     draw_range: Range<usize>,
 
-    // TODO(yan): Make find_hovered_ctrl and render use this instead oc
-    // recomputing from scratch.
     layout_cache_absolute_position: Vec2,
     layout_cache_content_size: Vec2,
 }
 
 pub struct Ui<A: Allocator + Clone, TA: Allocator> {
+    // TODO(yan): This is never reset! Consider not storing it at all, and
+    // instead having duplicate versions of Ui::new_in, Ui::begin_frame and
+    // Ui::end_frame that get the temp_allocator too. The simpler versions use
+    // the permanent allocator there. Ctrl::draw_text_ex can get the
+    // temp_allocator implicitly, passed from Ui to Frame, and from Frame to
+    // Ctrl.
     temp_allocator: TA,
 
     draw_primitives: Vec<DrawPrimitive, A>,
@@ -992,10 +1016,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
                         texture_id,
                         color,
                     } => {
-                        let rect =
-                            *rect + ctrl_rect_absolute.min_point() + ctrl.padding + ctrl.border
-                                - ctrl.scroll_offset;
-
+                        let rect = *rect + ctrl_rect_absolute.min_point() - ctrl.scroll_offset;
                         draw_list.draw_rect(
                             rect,
                             *texture_rect,
@@ -1290,21 +1311,36 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Frame<'a, A, TA> {
         let build_parent = &mut self.ui.tree[build_parent_idx];
         let build_parent_parent_idx = build_parent.parent_idx;
 
-        if build_parent
-            .flags
-            .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_CONTENT)
-        {
+        if build_parent.flags.intersects(CtrlFlags::ALL_SHRINK_TO_FIT) {
+            assert!(build_parent.child_idx == None);
+
             if let Some(inline_content_rect) = build_parent.inline_content_rect {
-                let rect = build_parent.rect;
-                let border = build_parent.border;
-                let padding = build_parent.padding;
+                let width = if build_parent
+                    .flags
+                    .intersects(CtrlFlags::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT)
+                {
+                    f32::min(
+                        build_parent.rect.width,
+                        inline_content_rect.x + inline_content_rect.width,
+                    )
+                } else {
+                    build_parent.rect.width
+                };
 
-                let size = rect.size();
-                let inline_size = inline_content_rect.size() + 2.0 * border + 2.0 * padding;
+                let height = if build_parent
+                    .flags
+                    .intersects(CtrlFlags::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT)
+                {
+                    f32::min(
+                        build_parent.rect.height,
+                        inline_content_rect.y + inline_content_rect.height,
+                    )
+                } else {
+                    build_parent.rect.height
+                };
 
-                let min_size = size.min(inline_size);
-
-                build_parent.rect = Rect::new(rect.x, rect.y, min_size.x, min_size.y);
+                build_parent.rect =
+                    Rect::new(build_parent.rect.x, build_parent.rect.y, width, height);
             }
         }
 
@@ -1383,7 +1419,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Frame<'a, A, TA> {
     pub fn ctrl_inner_size(&self) -> Vec2 {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let parent = &self.ui.tree[build_parent_idx];
-        let rect = parent.rect.inset(parent.border).inset(parent.padding);
+        let rect = parent.rect.inset(parent.border + parent.padding);
 
         rect.size()
     }
@@ -1514,7 +1550,7 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
     pub fn inner_size(&self) -> Vec2 {
         let ctrl = &self.ui.tree[self.idx];
-        let rect = ctrl.rect.inset(ctrl.border).inset(ctrl.padding);
+        let rect = ctrl.rect.inset(ctrl.border + ctrl.padding);
 
         rect.size()
     }
@@ -1550,19 +1586,19 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
         parent.draw_range.end += 1;
         if include_in_inline_content_rect {
-            parent.inline_content_rect = Some(
-                parent
-                    .inline_content_rect
-                    .map(|r| r.extend_by_rect(rect))
-                    .unwrap_or(rect),
-            );
+            if let Some(inline_content_rect) = &mut parent.inline_content_rect {
+                *inline_content_rect = inline_content_rect.extend_by_rect(rect);
+            } else {
+                parent.inline_content_rect = Some(rect);
+            }
         }
     }
 
     pub fn draw_text(&mut self, text: &str, color: u32) {
         self.draw_text_ex(
             true,
-            Vec2::ZERO,
+            None,
+            0.0,
             text,
             Align::Start,
             Align::Center,
@@ -1574,13 +1610,21 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
     pub fn draw_text_ex(
         &mut self,
         include_in_inline_content_rect: bool,
-        position: Vec2,
+        available_rect: Option<Rect>,
+        inset_amount: f32,
         text: &str,
         horizontal_align: Align,
         vertical_align: Align,
         wrap: Wrap,
         color: u32,
     ) {
+        assert!(inset_amount >= 0.0);
+
+        // TODO(yan): This has layout issues (characters not being aligned
+        // vertically to the baseline on Roboto and IBM Plex Mono fonts, but not
+        // on Proggy Clean). Possibly some ascent stuff. Or we both scaled and
+        // unscaled xmin/ymin.
+
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let next_draw_primitive_idx = self.ui.draw_primitives.len();
 
@@ -1595,20 +1639,20 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
         // Note that horizontal align still makes sense for shrinking, because
         // the lines will still be jagged and the width difference between
         // longest line and current line will provide the alignment space.
-        let vertical_align = if parent
-            .flags
-            .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_CONTENT)
-        {
+        let vertical_align = if parent.flags.intersects(CtrlFlags::ALL_SHRINK_TO_FIT) {
             Align::Start
         } else {
             vertical_align
         };
 
-        let available_rect = parent
-            .rect
-            .inset(2.0 * parent.border + 2.0 * parent.padding);
-        let available_width = (available_rect.width - position.x).max(0.0);
-        let available_height = (available_rect.height - position.y).max(0.0);
+        // NB: We zero X and Y of the default parent rect, because emiting draw
+        // commands insider a control already uses that control's transform. Not
+        // zeroing would apply them twice.
+        let available_rect = available_rect
+            .unwrap_or_else(|| Rect::new(0.0, 0.0, parent.rect.width, parent.rect.height))
+            .inset(inset_amount);
+        let available_width = available_rect.width;
+        let available_height = available_rect.height;
 
         // If we are expected to wrap text, but there's not enough space to
         // render a missing character, don't attempt anything.
@@ -1778,7 +1822,8 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
         //
         // Emit rects based on generated line data.
         //
-        let line_metrics = self.ui.font_atlas.line_metrics();
+        let line_metrics = self.ui.font_atlas.font_horizontal_line_metrics();
+        let font_scale_factor = self.ui.font_atlas.font_scale_factor();
         let (atlas_width, atlas_height) = {
             let atlas_size = self.ui.font_atlas.image_size();
             (f32::from(atlas_size.0), f32::from(atlas_size.1))
@@ -1790,41 +1835,41 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
         let mut position_y = if lines.len() as f32 * line_metrics.new_line_size < available_height {
             match vertical_align {
-                Align::Start => position.y,
+                Align::Start => line_metrics.line_gap + available_rect.y,
                 Align::Center => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    position.y + (available_height - text_block_size) / 2.0
+                    line_gap + available_rect.y + (available_height - text_block_size) / 2.0
                 }
                 Align::End => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    position.y + available_height - text_block_size
+                    line_gap + available_rect.y + available_height - text_block_size
                 }
             }
         } else {
-            0.0
+            line_metrics.line_gap
         };
 
         for line in &lines {
             let line_slice = &text[line.range.clone()];
 
             let mut position_x = match horizontal_align {
-                Align::Start => position.x,
-                Align::Center => position.x + (available_width - line.width) / 2.0,
-                Align::End => position.x + available_width - line.width,
+                Align::Start => available_rect.x,
+                Align::Center => available_rect.x + (available_width - line.width) / 2.0,
+                Align::End => available_rect.x + available_width - line.width,
             };
 
             for c in line_slice.chars() {
                 let info = self.ui.font_atlas.glyph_info(c);
 
                 let rect = Rect::new(
-                    position_x + info.xmin as f32,
-                    position_y + line_metrics.ascent - info.height - info.ymin as f32,
+                    position_x + info.xmin,
+                    position_y + line_metrics.ascent - info.height - info.ymin,
                     info.width,
                     info.height,
                 );
@@ -1832,8 +1877,8 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
                 let texture_rect = Rect::new(
                     f32::from(info.grid_x) * atlas_cell_width / atlas_width,
                     f32::from(info.grid_y) * atlas_cell_height / atlas_height,
-                    info.atlas_width / atlas_width,
-                    info.atlas_height / atlas_height,
+                    info.width * font_scale_factor / atlas_width,
+                    info.height * font_scale_factor / atlas_height,
                 );
 
                 // TODO(yan): @Speed @Memory Does early software scissor make
@@ -1849,18 +1894,27 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
 
                 parent.draw_range.end += 1;
                 if include_in_inline_content_rect {
-                    parent.inline_content_rect = Some(
-                        parent
-                            .inline_content_rect
-                            .map(|r| r.extend_by_rect(rect))
-                            .unwrap_or(rect),
-                    );
+                    if let Some(inline_content_rect) = &mut parent.inline_content_rect {
+                        *inline_content_rect = inline_content_rect.extend_by_rect(rect);
+                    } else {
+                        parent.inline_content_rect = Some(rect);
+                    }
                 }
 
                 position_x += info.advance_width;
             }
 
             position_y += line_metrics.new_line_size;
+        }
+
+        // NB: Because this isn't real padding/border, we need to ensure that if
+        // we used inset, the final content rect reflects that. This happens
+        // automatically for top and left, but we need to add the inset_amount
+        // to its size.
+        if include_in_inline_content_rect {
+            if let Some(inline_content_rect) = &mut parent.inline_content_rect {
+                *inline_content_rect = inline_content_rect.resize(Vec2::splat(inset_amount));
+            }
         }
     }
 }

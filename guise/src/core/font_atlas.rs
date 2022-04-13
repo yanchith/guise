@@ -20,6 +20,8 @@ pub static FONT_IBM_PLEX_SANS_JP: &[u8] = include_bytes!("../../assets/IBMPlexSa
 pub static FONT_PROGGY_CLEAN: &[u8] = include_bytes!("../../assets/ProggyClean.ttf");
 #[cfg(feature = "font_roboto")]
 pub static FONT_ROBOTO: &[u8] = include_bytes!("../../assets/Roboto-Regular.ttf");
+#[cfg(feature = "font_liberation_mono")]
+pub static FONT_LIBERATION_MONO: &[u8] = include_bytes!("../../assets/LiberationMono-Regular.ttf");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct UnicodeRangeFlags(u32);
@@ -180,26 +182,21 @@ pub struct GlyphInfo {
     pub grid_x: u16,
     pub grid_y: u16,
 
-    // Glyph advance with in logical pixels, used for layout.
+    // Glyph advance with in logical pixels.
     pub advance_width: f32,
 
-    // Glyph width and height in logical pixels, used for layout.
+    // Glyph width and height, xmin and ymin in logical pixels.
     pub width: f32,
     pub height: f32,
-
-    // See fontdue::Metrics::xmin and fontdue::Metrics::ymin
-    pub xmin: i32,
-    pub ymin: i32,
-
-    // Glyph width and height in the atlas, where they are scaled.
-    pub atlas_width: f32,
-    pub atlas_height: f32,
+    pub xmin: f32,
+    pub ymin: f32,
 }
 
 // TODO(yan): Allocate everything in provided allocator.
 pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
     font_horizontal_line_metrics: fontdue::LineMetrics,
+    font_scale_factor: f32,
     max_atlas_glyph_width: u16,
     max_atlas_glyph_height: u16,
     image: Vec<u8>,
@@ -218,7 +215,6 @@ impl<A: Allocator + Clone> FontAtlas<A> {
         perm_allocator: A,
         temp_allocator: &TA,
     ) -> FontAtlas<A> {
-        let min_font_scale = fontdue::FontSettings::default().scale;
         let font_size_scaled = font_size * font_scale_factor;
 
         let settings = fontdue::FontSettings {
@@ -229,7 +225,7 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             // practice, my blind eyes only start seeing degradation when scale
             // is half the font size, so keeping it around font-sized should be
             // ok. We might want to revisit this later.
-            scale: f32::max(min_font_scale, font_size_scaled),
+            scale: f32::max(40.0, font_size_scaled),
         };
         let font = fontdue::Font::from_bytes(font_bytes, settings).unwrap();
 
@@ -307,7 +303,7 @@ impl<A: Allocator + Clone> FontAtlas<A> {
         // when computing index.
         for y in 0..usize::from(max_atlas_glyph_height) {
             for x in 0..usize::from(max_atlas_glyph_width) {
-                let index = usize::from((x + y * usize::from(atlas_pixel_width)) * 4);
+                let index = (x + y * usize::from(atlas_pixel_width)) * 4;
                 atlas_image[index] = 255;
                 atlas_image[index + 1] = 255;
                 atlas_image[index + 2] = 255;
@@ -362,14 +358,10 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
                     advance_width: unscaled_metrics.advance_width,
 
-                    width: unscaled_metrics.width as f32,
-                    height: unscaled_metrics.height as f32,
-
-                    xmin: unscaled_metrics.xmin,
-                    ymin: unscaled_metrics.ymin,
-
-                    atlas_width: metrics.width as f32,
-                    atlas_height: metrics.height as f32,
+                    width: unscaled_metrics.bounds.width,
+                    height: unscaled_metrics.bounds.height,
+                    xmin: unscaled_metrics.bounds.xmin,
+                    ymin: unscaled_metrics.bounds.ymin,
                 });
 
                 cell_index += 1;
@@ -383,15 +375,17 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             const ADVANCE_SIZE_RATIO: f32 = 0.8;
             const SIZE_RATIO: f32 = 0.7;
 
-            let horizontal_padding = max_atlas_glyph_width as f32 * (1.0 - SIZE_RATIO) / sf;
-            let vertical_padding = max_atlas_glyph_height as f32 * (1.0 - SIZE_RATIO) / sf;
-
             let advance_width = max_atlas_glyph_width as f32 * ADVANCE_SIZE_RATIO / sf;
-            let width = max_atlas_glyph_width as f32 * SIZE_RATIO / sf;
-            let height = max_atlas_glyph_height as f32 * SIZE_RATIO / sf;
+
+            let atlas_xmin = max_atlas_glyph_width as f32 * 0.5 * (1.0 - SIZE_RATIO);
+            let atlas_ymin = max_atlas_glyph_height as f32 * 0.5 * (1.0 - SIZE_RATIO);
+            let xmin = atlas_xmin / sf;
+            let ymin = atlas_ymin / sf;
 
             let atlas_width = max_atlas_glyph_width as f32 * SIZE_RATIO;
             let atlas_height = max_atlas_glyph_height as f32 * SIZE_RATIO;
+            let width = atlas_width / sf;
+            let height = atlas_height / sf;
 
             GlyphInfo {
                 grid_x: 0,
@@ -401,18 +395,15 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
                 width,
                 height,
-
-                xmin: (horizontal_padding / 2.0) as i32,
-                ymin: (vertical_padding / 2.0) as i32,
-
-                atlas_width,
-                atlas_height,
+                xmin,
+                ymin,
             }
         };
 
         Self {
             font,
             font_horizontal_line_metrics,
+            font_scale_factor,
             max_atlas_glyph_width,
             max_atlas_glyph_height,
             image: atlas_image,
@@ -435,8 +426,12 @@ impl<A: Allocator + Clone> FontAtlas<A> {
         &self.image
     }
 
-    pub fn line_metrics(&self) -> fontdue::LineMetrics {
+    pub fn font_horizontal_line_metrics(&self) -> fontdue::LineMetrics {
         self.font_horizontal_line_metrics
+    }
+
+    pub fn font_scale_factor(&self) -> f32 {
+        self.font_scale_factor
     }
 
     pub fn glyph_info(&self, c: char) -> GlyphInfo {
