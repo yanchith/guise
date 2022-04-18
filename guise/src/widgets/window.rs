@@ -30,31 +30,7 @@ where
     A: Allocator + Clone,
     TA: Allocator,
 {
-    Window::new(id, Layout::Vertical, x, y, width, height).begin(frame)
-}
-
-pub fn begin_window_ex<'f, X, Y, W, H, A, TA>(
-    frame: &'f mut Frame<A, TA>,
-    id: u32,
-    x: X,
-    y: Y,
-    width: W,
-    height: H,
-    layout: Layout,
-) -> Ctrl<'f, A, TA>
-where
-    X: TryInto<Size>,
-    Y: TryInto<Size>,
-    W: TryInto<Size>,
-    H: TryInto<Size>,
-    <X as TryInto<Size>>::Error: Debug,
-    <Y as TryInto<Size>>::Error: Debug,
-    <W as TryInto<Size>>::Error: Debug,
-    <H as TryInto<Size>>::Error: Debug,
-    A: Allocator + Clone,
-    TA: Allocator,
-{
-    Window::new(id, layout, x, y, width, height).begin(frame)
+    Window::new(id, x, y, width, height).begin(frame)
 }
 
 pub fn end_window<A, TA>(frame: &mut Frame<A, TA>)
@@ -67,17 +43,21 @@ where
 
 pub struct Window<'a> {
     id: u32,
-    layout: Layout,
-
-    theme: &'a Theme,
     x: Size,
     y: Size,
     width: Size,
     height: Size,
+
+    movable: bool,
+    resizable: bool,
+
+    layout: Layout,
+
+    theme: &'a Theme,
 }
 
 impl<'a> Window<'a> {
-    pub fn new<X, Y, W, H>(id: u32, layout: Layout, x: X, y: Y, width: W, height: H) -> Self
+    pub fn new<X, Y, W, H>(id: u32, x: X, y: Y, width: W, height: H) -> Self
     where
         X: TryInto<Size>,
         Y: TryInto<Size>,
@@ -95,14 +75,33 @@ impl<'a> Window<'a> {
 
         Self {
             id,
-            layout,
-
-            theme: &Theme::DEFAULT,
             x,
             y,
             width,
             height,
+
+            movable: true,
+            resizable: true,
+
+            layout: Layout::Vertical,
+
+            theme: &Theme::DEFAULT,
         }
+    }
+
+    pub fn set_movable(&mut self, movable: bool) -> &mut Self {
+        self.movable = movable;
+        self
+    }
+
+    pub fn set_resizable(&mut self, resizable: bool) -> &mut Self {
+        self.resizable = resizable;
+        self
+    }
+
+    pub fn set_layout(&mut self, layout: Layout) -> &mut Self {
+        self.layout = layout;
+        self
     }
 
     pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
@@ -125,13 +124,28 @@ impl<'a> Window<'a> {
 
         let state = ctrl.state();
         let (x, y, mut width, mut height, activity) = if initialized(state) {
-            (
-                x(state),
-                y(state),
-                width(state),
-                height(state),
-                activity(state),
-            )
+            let (x, y) = if self.movable {
+                (x(state), y(state))
+            } else {
+                (self.x.resolve(parent_size.x), self.y.resolve(parent_size.y))
+            };
+
+            let (width, height) = if self.resizable {
+                (width(state), height(state))
+            } else {
+                (
+                    self.width.resolve(parent_size.x),
+                    self.height.resolve(parent_size.y),
+                )
+            };
+
+            let activity = match (activity(state), self.movable, self.resizable) {
+                (ACTIVITY_MOVE, false, _) => ACTIVITY_NONE,
+                (ACTIVITY_RESIZE, _, false) => ACTIVITY_NONE,
+                (activity, _, _) => activity,
+            };
+
+            (x, y, width, height, activity)
         } else {
             (
                 self.x.resolve(parent_size.x),
@@ -142,9 +156,11 @@ impl<'a> Window<'a> {
             )
         };
 
-        ctrl.set_flags(
-            CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE,
-        );
+        ctrl.set_flags(if self.movable || self.resizable {
+            CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE
+        } else {
+            CtrlFlags::CAPTURE_SCROLL
+        });
         ctrl.set_layout(self.layout);
         ctrl.set_rect(Rect::new(x, y, width, height));
         ctrl.set_padding(self.theme.window_padding);
@@ -169,6 +185,13 @@ impl<'a> Window<'a> {
         set_width(state, width);
         set_height(state, height);
         set_initialized(state, true);
+
+        if !self.movable && activity == ACTIVITY_MOVE {
+            set_activity(state, ACTIVITY_NONE);
+        }
+        if !self.resizable && activity == ACTIVITY_RESIZE {
+            set_activity(state, ACTIVITY_NONE);
+        }
 
         if activity == ACTIVITY_RESIZE {
             if lmb_released {
@@ -195,7 +218,7 @@ impl<'a> Window<'a> {
                 // Set rect again with updated data to reduce latency
                 ctrl.set_rect(Rect::new(x, y, width, height));
             }
-        } else if hovered && resize_handle_hovered && lmb_pressed {
+        } else if self.resizable && hovered && resize_handle_hovered && lmb_pressed {
             set_activity(state, ACTIVITY_RESIZE);
             set_activity_start_x(state, width);
             set_activity_start_y(state, height);
@@ -225,7 +248,7 @@ impl<'a> Window<'a> {
                 // Set rect again with updated data to reduce latency
                 ctrl.set_rect(Rect::new(position.x, position.y, width, height));
             }
-        } else if hovered && lmb_pressed {
+        } else if self.movable && hovered && lmb_pressed {
             set_activity(state, ACTIVITY_MOVE);
             set_activity_start_x(state, x);
             set_activity_start_y(state, y);
@@ -260,18 +283,20 @@ impl<'a> Window<'a> {
         ctrl.set_draw_self_border_color(border_color);
         ctrl.set_draw_self_background_color(background_color);
 
-        ctrl.draw_rect(
-            false,
-            Rect::new(
-                width - resize_handle_dimension,
-                height - resize_handle_dimension,
-                resize_handle_dimension,
-                resize_handle_dimension,
-            ),
-            Rect::ZERO,
-            resize_handle_color,
-            0,
-        );
+        if self.resizable {
+            ctrl.draw_rect(
+                false,
+                Rect::new(
+                    width - resize_handle_dimension,
+                    height - resize_handle_dimension,
+                    resize_handle_dimension,
+                    resize_handle_dimension,
+                ),
+                Rect::ZERO,
+                resize_handle_color,
+                0,
+            );
+        }
 
         ctrl
     }

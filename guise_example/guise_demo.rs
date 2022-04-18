@@ -214,7 +214,8 @@ where
                             i as f32 * column_width,
                             height - 1.0 * height / 4.0,
                             0.23 * column_width,
-                            0.23 * state.graph_frame_build[i] / graph_frame_build_max * height / 4.0,
+                            0.23 * state.graph_frame_build[i] / graph_frame_build_max * height
+                                / 4.0,
                         ),
                         guise::Rect::ZERO,
                         if i == current_idx {
@@ -308,15 +309,9 @@ where
     }
 
     {
-        let mut window_ctrl = guise::begin_window_ex(
-            frame,
-            line!(),
-            "1%",
-            "1%",
-            "23%",
-            "48%",
-            guise::Layout::Free,
-        );
+        let mut window_ctrl = guise::Window::new(line!(), "1%", "1%", "23%", "48%")
+            .set_layout(guise::Layout::Free)
+            .begin(frame);
 
         let inner_size = window_ctrl.inner_size();
         window_ctrl.draw_rect(
@@ -328,12 +323,14 @@ where
         );
 
         {
-            let mut window_ctrl = guise::begin_window(frame, line!(), 5.0, 5.0, 100.0, 50.0);
+            let mut window_ctrl = guise::Window::new(line!(), 5.0, 5.0, 150.0, 50.0)
+                .set_resizable(false)
+                .begin(frame);
             window_ctrl.draw_text_ex(
                 false,
                 None,
                 0.0,
-                "Hello",
+                "This window not resizable",
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
@@ -343,12 +340,14 @@ where
         }
 
         {
-            let mut window_ctrl = guise::begin_window(frame, line!(), 100.0, 100.0, 150.0, 50.0);
+            let mut window_ctrl = guise::Window::new(line!(), 100.0, 100.0, 150.0, 50.0)
+                .set_movable(false)
+                .begin(frame);
             window_ctrl.draw_text_ex(
                 false,
                 None,
                 0.0,
-                "Traveller",
+                "This window is not movable",
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
@@ -358,7 +357,25 @@ where
         }
 
         {
-            let mut window_ctrl = guise::begin_window(frame, line!(), 50.0, 250.0, 200.0, 100.0);
+            let mut window_ctrl = guise::Window::new(line!(), "5%", "80%", "90%", "15%")
+                .set_movable(false)
+                .set_resizable(false)
+                .begin(frame);
+            window_ctrl.draw_text_ex(
+                false,
+                None,
+                0.0,
+                "This window is neither movable nor resizable",
+                guise::Align::Center,
+                guise::Align::Center,
+                guise::Wrap::Word,
+                0x102030ff,
+            );
+            guise::end_window(frame);
+        }
+
+        {
+            let mut window_ctrl = guise::begin_window(frame, line!(), 20.0, 160.0, 200.0, 60.0);
             window_ctrl.draw_text_ex(
                 false,
                 None,
