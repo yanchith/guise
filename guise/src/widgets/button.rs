@@ -2,6 +2,7 @@ use core::alloc::Allocator;
 
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
+use crate::widgets::tooltip_text::TooltipText;
 
 pub fn button<A: Allocator + Clone>(frame: &mut Frame<A>, id: u32, label: &str) -> bool {
     Button::new(id, label).show(frame)
@@ -14,6 +15,7 @@ pub struct Button<'a> {
     id: u32,
     label: &'a str,
     image_texture_id: Option<u64>,
+    tooltip: Option<&'a str>,
     theme: &'a Theme,
 }
 
@@ -23,13 +25,9 @@ impl<'a> Button<'a> {
             id,
             label,
             image_texture_id: None,
+            tooltip: None,
             theme: &Theme::DEFAULT,
         }
-    }
-
-    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
-        self.theme = theme;
-        self
     }
 
     pub fn set_image(&mut self, image_texture_id: u64) -> &mut Self {
@@ -37,10 +35,20 @@ impl<'a> Button<'a> {
         self
     }
 
+    pub fn set_tooltip(&mut self, tooltip: &'a str) -> &mut Self {
+        self.tooltip = Some(tooltip);
+        self
+    }
+
+    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
+        self.theme = theme;
+        self
+    }
+
     pub fn show<A: Allocator + Clone>(&self, frame: &mut Frame<A>) -> bool {
         let parent_size = frame.ctrl_inner_size();
-        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
-        let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
+        let lmb_released = frame.inputs_released() == Inputs::MB_LEFT;
 
         let (width, height, border, margin) = if self.image_texture_id.is_some() {
             (
@@ -133,7 +141,7 @@ impl<'a> Button<'a> {
                 image_texture_id,
             )
         } else {
-            ctrl.draw_text_ex(
+            ctrl.draw_text(
                 false,
                 None,
                 0.0,
@@ -143,6 +151,14 @@ impl<'a> Button<'a> {
                 Wrap::Word,
                 text_color,
             );
+        }
+
+        if let Some(tooltip) = self.tooltip {
+            if hovered {
+                TooltipText::new(0, tooltip)
+                    .set_theme(self.theme)
+                    .show(frame);
+            }
         }
 
         frame.pop_ctrl();

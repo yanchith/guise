@@ -8,6 +8,7 @@ mod panel;
 mod size;
 mod text;
 mod theme;
+mod tooltip_text;
 mod window;
 
 pub use button::*;
@@ -20,4 +21,5 @@ pub use panel::*;
 pub use size::*;
 pub use text::*;
 pub use theme::*;
+pub use tooltip_text::*;
 pub use window::*;

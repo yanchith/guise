@@ -12,57 +12,60 @@ use crate::core::math::{Rect, Vec2};
 const ROOT_IDX: usize = 0;
 const OVERLAY_ROOT_IDX: usize = 1;
 
+const VERTICAL_RESIZE_FLAGS: CtrlFlags =
+    CtrlFlags::SHRINK_TO_FIT_INLINE_VERTICAL | CtrlFlags::RESIZE_TO_FIT_VERTICAL;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Inputs(u32);
 
 impl Inputs {
-    pub const MOUSE_BUTTON_LEFT: Self = Self(0x01);
-    pub const MOUSE_BUTTON_RIGHT: Self = Self(0x02);
-    pub const MOUSE_BUTTON_MIDDLE: Self = Self(0x04);
-    pub const MOUSE_BUTTON_4: Self = Self(0x08);
-    pub const MOUSE_BUTTON_5: Self = Self(0x10);
-    pub const MOUSE_BUTTON_6: Self = Self(0x20);
-    pub const MOUSE_BUTTON_7: Self = Self(0x40);
+    pub const MB_LEFT: Self = Self(0x01);
+    pub const MB_RIGHT: Self = Self(0x02);
+    pub const MB_MIDDLE: Self = Self(0x04);
+    pub const MB_4: Self = Self(0x08);
+    pub const MB_5: Self = Self(0x10);
+    pub const MB_6: Self = Self(0x20);
+    pub const MB_7: Self = Self(0x40);
 
-    pub const KEYBOARD_TAB: Self = Self(0x80);
-    pub const KEYBOARD_LEFT_ARROW: Self = Self(0x100);
-    pub const KEYBOARD_RIGHT_ARROW: Self = Self(0x200);
-    pub const KEYBOARD_UP_ARROW: Self = Self(0x400);
-    pub const KEYBOARD_DOWN_ARROW: Self = Self(0x800);
-    pub const KEYBOARD_PAGE_UP: Self = Self(0x1000);
-    pub const KEYBOARD_PAGE_DOWN: Self = Self(0x2000);
-    pub const KEYBOARD_HOME: Self = Self(0x4000);
-    pub const KEYBOARD_END: Self = Self(0x8000);
-    pub const KEYBOARD_INSERT: Self = Self(0x10000);
-    pub const KEYBOARD_DELETE: Self = Self(0x20000);
-    pub const KEYBOARD_BACKSPACE: Self = Self(0x40000);
-    pub const KEYBOARD_ENTER: Self = Self(0x80000);
-    pub const KEYBOARD_ESCAPE: Self = Self(0x100000);
+    pub const KB_TAB: Self = Self(0x80);
+    pub const KB_LEFT_ARROW: Self = Self(0x100);
+    pub const KB_RIGHT_ARROW: Self = Self(0x200);
+    pub const KB_UP_ARROW: Self = Self(0x400);
+    pub const KB_DOWN_ARROW: Self = Self(0x800);
+    pub const KB_PAGE_UP: Self = Self(0x1000);
+    pub const KB_PAGE_DOWN: Self = Self(0x2000);
+    pub const KB_HOME: Self = Self(0x4000);
+    pub const KB_END: Self = Self(0x8000);
+    pub const KB_INSERT: Self = Self(0x10000);
+    pub const KB_DELETE: Self = Self(0x20000);
+    pub const KB_BACKSPACE: Self = Self(0x40000);
+    pub const KB_ENTER: Self = Self(0x80000);
+    pub const KB_ESCAPE: Self = Self(0x100000);
 
     // TODO(yan): Fill in gamepad thingies.
 
     pub const NONE: Self = Self(0);
-    pub const ALL: Self = Self::MOUSE_BUTTON_LEFT
-        | Self::MOUSE_BUTTON_RIGHT
-        | Self::MOUSE_BUTTON_MIDDLE
-        | Self::MOUSE_BUTTON_4
-        | Self::MOUSE_BUTTON_5
-        | Self::MOUSE_BUTTON_6
-        | Self::MOUSE_BUTTON_7
-        | Self::KEYBOARD_TAB
-        | Self::KEYBOARD_LEFT_ARROW
-        | Self::KEYBOARD_RIGHT_ARROW
-        | Self::KEYBOARD_UP_ARROW
-        | Self::KEYBOARD_DOWN_ARROW
-        | Self::KEYBOARD_PAGE_UP
-        | Self::KEYBOARD_PAGE_DOWN
-        | Self::KEYBOARD_HOME
-        | Self::KEYBOARD_END
-        | Self::KEYBOARD_INSERT
-        | Self::KEYBOARD_DELETE
-        | Self::KEYBOARD_BACKSPACE
-        | Self::KEYBOARD_ENTER
-        | Self::KEYBOARD_ESCAPE;
+    pub const ALL: Self = Self::MB_LEFT
+        | Self::MB_RIGHT
+        | Self::MB_MIDDLE
+        | Self::MB_4
+        | Self::MB_5
+        | Self::MB_6
+        | Self::MB_7
+        | Self::KB_TAB
+        | Self::KB_LEFT_ARROW
+        | Self::KB_RIGHT_ARROW
+        | Self::KB_UP_ARROW
+        | Self::KB_DOWN_ARROW
+        | Self::KB_PAGE_UP
+        | Self::KB_PAGE_DOWN
+        | Self::KB_HOME
+        | Self::KB_END
+        | Self::KB_INSERT
+        | Self::KB_DELETE
+        | Self::KB_BACKSPACE
+        | Self::KB_ENTER
+        | Self::KB_ESCAPE;
 
     pub fn bits(&self) -> u32 {
         self.0
@@ -147,6 +150,9 @@ impl CtrlFlags {
     /// flag.
     pub const CAPTURE_ACTIVE: Self = Self(0x04);
 
+    #[allow(dead_code)]
+    const RESERVED: Self = Self(0x08);
+
     /// Whether to attempt shrinking the control's rect width to the width of
     /// its inline contents (text or geometry) before layout and render. This
     /// will only ever shrink and never grow.
@@ -158,7 +164,7 @@ impl CtrlFlags {
     ///
     /// This works, becuase the layout of inline content is immediately
     /// available when a control is popped.
-    pub const HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x08);
+    pub const SHRINK_TO_FIT_INLINE_HORIZONTAL: Self = Self(0x10);
 
     /// Whether to attempt shrinking the control's rect height to the height of
     /// its inline contents (text or geometry) before layout and render. This
@@ -171,16 +177,51 @@ impl CtrlFlags {
     ///
     /// This works, becuase the layout of inline content is immediately
     /// available when a control is popped.
-    pub const VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT: Self = Self(0x10);
+    pub const SHRINK_TO_FIT_INLINE_VERTICAL: Self = Self(0x20);
+
+    /// Whether to resize the control's rect width to the width of its contents,
+    /// child or inline.
+    ///
+    /// One usecase is auto-sizing tooltips based on content.
+    ///
+    /// This has no downsides for non-interactive controls, because the layout
+    /// pass computes the size of all of control's contents before they are used
+    /// for rendering. Any interactivity may experience a one frame lag,
+    /// however, because building the UI happens before layout is computed, and
+    /// only has layout data from last frame, if any.
+    ///
+    /// WARNING: This currently doesn't work well, or at all. Some things are
+    /// off in layout computation and I moved on to other things for now.
+    pub const RESIZE_TO_FIT_HORIZONTAL: Self = Self(0x40);
+
+    /// Whether to resize the control's rect height to the height of its contents,
+    /// child or inline.
+    ///
+    /// One usecase is auto-sizing tooltips based on content.
+    ///
+    /// This has no downsides for non-interactive controls, because the layout
+    /// pass computes the size of all of control's contents before they are used
+    /// for rendering. Any interactivity may experience a one frame lag,
+    /// however, because building the UI happens before layout is computed, and
+    /// only has layout data from last frame, if any.
+    ///
+    /// WARNING: This currently doesn't work well, or at all. Some things are
+    /// off in layout computation and I moved on to other things for now.
+    pub const RESIZE_TO_FIT_VERTICAL: Self = Self(0x80);
 
     pub const NONE: Self = Self(0);
     pub const ALL: Self = Self::CAPTURE_SCROLL
         | Self::CAPTURE_HOVER
         | Self::CAPTURE_ACTIVE
-        | Self::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT
-        | Self::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT;
-    pub const ALL_SHRINK_TO_FIT: Self =
-        Self::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT | Self::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT;
+        | Self::SHRINK_TO_FIT_INLINE_HORIZONTAL
+        | Self::SHRINK_TO_FIT_INLINE_VERTICAL
+        | Self::RESIZE_TO_FIT_HORIZONTAL
+        | Self::RESIZE_TO_FIT_VERTICAL;
+
+    pub const ALL_SHRINK_TO_FIT_INLINE: Self =
+        Self::SHRINK_TO_FIT_INLINE_HORIZONTAL | Self::SHRINK_TO_FIT_INLINE_VERTICAL;
+    pub const ALL_RESIZE_TO_FIT: Self =
+        Self::RESIZE_TO_FIT_HORIZONTAL | Self::RESIZE_TO_FIT_VERTICAL;
 
     pub fn bits(self) -> u32 {
         self.0
@@ -785,15 +826,12 @@ impl<A: Allocator + Clone> Ui<A> {
         // next frame's build phase. We update both the base layer and the
         // overlay.
         //
-        update_ctrl_layout(&mut self.tree, ROOT_IDX, Vec2::ZERO);
-        update_ctrl_layout(&mut self.tree, OVERLAY_ROOT_IDX, Vec2::ZERO);
+        layout(&mut self.tree, ROOT_IDX, Vec2::ZERO);
+        layout(&mut self.tree, OVERLAY_ROOT_IDX, Vec2::ZERO);
 
-        fn update_ctrl_layout(
-            tree: &mut [CtrlNode],
-            ctrl_idx: usize,
-            ctrl_absolute_position_base: Vec2,
-        ) {
+        fn layout(tree: &mut [CtrlNode], ctrl_idx: usize, ctrl_absolute_position_base: Vec2) {
             let ctrl = &tree[ctrl_idx];
+            let ctrl_flags = ctrl.flags;
             let ctrl_layout = ctrl.layout;
             let ctrl_inline_content_rect = ctrl.inline_content_rect;
             let ctrl_absolute_position =
@@ -803,7 +841,7 @@ impl<A: Allocator + Clone> Ui<A> {
                 let child_absolute_position_base =
                     ctrl_absolute_position + ctrl.border + ctrl.padding - ctrl.scroll_offset;
 
-                update_ctrl_layout(tree, child_idx, child_absolute_position_base);
+                layout(tree, child_idx, child_absolute_position_base);
 
                 let mut child = &tree[child_idx];
                 let mut child_margin_rect = child.rect.offset(child.margin);
@@ -817,7 +855,7 @@ impl<A: Allocator + Clone> Ui<A> {
                 let mut max_point = child_margin_rect.max_point();
 
                 while let Some(sibling_idx) = child.sibling_idx {
-                    update_ctrl_layout(
+                    layout(
                         tree,
                         sibling_idx,
                         child_absolute_position_base + child_absolute_position_offset,
@@ -857,10 +895,32 @@ impl<A: Allocator + Clone> Ui<A> {
 
                 ctrl_mut.layout_cache_absolute_position = ctrl_absolute_position;
                 if let Some(inline_content_rect) = ctrl_inline_content_rect {
-                    tree[ctrl_idx].layout_cache_content_size = inline_content_rect.size();
+                    ctrl_mut.layout_cache_content_size = inline_content_rect.size();
                 } else {
-                    tree[ctrl_idx].layout_cache_content_size = Vec2::ZERO;
+                    ctrl_mut.layout_cache_content_size = Vec2::ZERO;
                 }
+            }
+
+            if ctrl_flags.intersects(CtrlFlags::ALL_RESIZE_TO_FIT) {
+                let ctrl_mut = &mut tree[ctrl_idx];
+
+                let offset = 2.0 * ctrl_mut.border + 2.0 * ctrl_mut.padding;
+                let x = ctrl_mut.rect.x;
+                let y = ctrl_mut.rect.y;
+
+                let width = if ctrl_flags.intersects(CtrlFlags::RESIZE_TO_FIT_HORIZONTAL) {
+                    ctrl_mut.layout_cache_content_size.x + offset
+                } else {
+                    ctrl_mut.rect.width
+                };
+
+                let height = if ctrl_flags.intersects(CtrlFlags::RESIZE_TO_FIT_VERTICAL) {
+                    ctrl_mut.layout_cache_content_size.y + offset
+                } else {
+                    ctrl_mut.rect.height
+                };
+
+                ctrl_mut.rect = Rect::new(x, y, width, height);
             }
         }
 
@@ -874,7 +934,7 @@ impl<A: Allocator + Clone> Ui<A> {
             &self.draw_primitives,
             self.font_atlas_texture_id,
             &mut self.draw_list,
-            &self.allocator, // XXX: temp_allocator
+            &self.allocator,
         );
         render(
             &self.tree,
@@ -883,7 +943,7 @@ impl<A: Allocator + Clone> Ui<A> {
             &self.draw_primitives,
             self.font_atlas_texture_id,
             &mut self.draw_list,
-            &self.allocator, // XXX: temp_allocator
+            &self.allocator,
         );
 
         // TODO(yan): @Memory If the allocator is a bump allocator, we
@@ -1310,13 +1370,16 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
         let build_parent = &mut self.ui.tree[build_parent_idx];
         let build_parent_parent_idx = build_parent.parent_idx;
 
-        if build_parent.flags.intersects(CtrlFlags::ALL_SHRINK_TO_FIT) {
+        if build_parent
+            .flags
+            .intersects(CtrlFlags::ALL_SHRINK_TO_FIT_INLINE)
+        {
             assert!(build_parent.child_idx == None);
 
             if let Some(inline_content_rect) = build_parent.inline_content_rect {
                 let width = if build_parent
                     .flags
-                    .intersects(CtrlFlags::HORIZONTAL_SHRINK_TO_FIT_INLINE_CONTENT)
+                    .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_HORIZONTAL)
                 {
                     f32::min(
                         build_parent.rect.width,
@@ -1328,7 +1391,7 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
 
                 let height = if build_parent
                     .flags
-                    .intersects(CtrlFlags::VERTICAL_SHRINK_TO_FIT_INLINE_CONTENT)
+                    .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_VERTICAL)
                 {
                     f32::min(
                         build_parent.rect.height,
@@ -1593,20 +1656,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         }
     }
 
-    pub fn draw_text(&mut self, text: &str, color: u32) {
-        self.draw_text_ex(
-            true,
-            None,
-            0.0,
-            text,
-            Align::Start,
-            Align::Center,
-            Wrap::Word,
-            color,
-        );
-    }
-
-    pub fn draw_text_ex(
+    pub fn draw_text(
         &mut self,
         include_in_inline_content_rect: bool,
         available_rect: Option<Rect>,
@@ -1632,13 +1682,13 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         assert!(parent.draw_range.end == next_draw_primitive_idx);
 
         // NB: Vertical align only makes sense, if there is any free space to
-        // align in. If we are going to shrink, there is no free space and it
-        // simplifies things for us to align to start and not care later.
+        // align in. If we are going to shrink/resize, there is no free space
+        // and it simplifies things for us to align to start and not care later.
         //
         // Note that horizontal align still makes sense for shrinking, because
         // the lines will still be jagged and the width difference between
         // longest line and current line will provide the alignment space.
-        let vertical_align = if parent.flags.intersects(CtrlFlags::ALL_SHRINK_TO_FIT) {
+        let vertical_align = if parent.flags.intersects(VERTICAL_RESIZE_FLAGS) {
             Align::Start
         } else {
             vertical_align

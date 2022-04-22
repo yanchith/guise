@@ -36,8 +36,8 @@ impl<'a> Checkbox<'a> {
 
     pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
         let parent_size = frame.ctrl_inner_size();
-        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
-        let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
+        let lmb_released = frame.inputs_released() == Inputs::MB_LEFT;
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.checkbox_margin);
 
@@ -118,7 +118,7 @@ impl<'a> Checkbox<'a> {
             );
         }
 
-        ctrl.draw_text_ex(
+        ctrl.draw_text(
             false,
             Some(Rect::new(
                 40.0,

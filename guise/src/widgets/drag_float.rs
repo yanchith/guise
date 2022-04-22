@@ -8,38 +8,19 @@ use crate::widgets::theme::Theme;
 
 // TODO(yan): Do DragFloat2, DragFloat3, DragFloat4.
 
-pub fn drag_float<A: Allocator + Clone>(
-    frame: &mut Frame<A>,
-    id: u32,
-    value: &mut f32,
-    speed: f32,
-) -> bool {
-    DragFloat::new(id, value).set_speed(speed).show(frame)
-}
-
-pub fn drag_float_ex<A: Allocator + Clone>(
-    frame: &mut Frame<A>,
-    id: u32,
-    value: &mut f32,
-    speed: f32,
-    min: f32,
-    max: f32,
-) -> bool {
-    DragFloat::new(id, value)
-        .set_speed(speed)
-        .set_min(min)
-        .set_max(max)
-        .show(frame)
+pub fn drag_float<A: Allocator + Clone>(frame: &mut Frame<A>, id: u32, value: &mut f32) -> bool {
+    DragFloat::new(id, value).show(frame)
 }
 
 pub struct DragFloat<'a> {
     id: u32,
     value: &'a mut f32,
-    theme: &'a Theme,
 
     speed: f32,
     min: f32,
     max: f32,
+
+    theme: &'a Theme,
 }
 
 impl<'a> DragFloat<'a> {
@@ -47,17 +28,13 @@ impl<'a> DragFloat<'a> {
         Self {
             id,
             value,
-            theme: &Theme::DEFAULT,
 
             speed: 1.0,
             min: f32::MIN,
             max: f32::MAX,
-        }
-    }
 
-    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
-        self.theme = theme;
-        self
+            theme: &Theme::DEFAULT,
+        }
     }
 
     pub fn set_speed(&mut self, speed: f32) -> &mut Self {
@@ -72,6 +49,11 @@ impl<'a> DragFloat<'a> {
 
     pub fn set_max(&mut self, max: f32) -> &mut Self {
         self.max = max;
+        self
+    }
+
+    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
+        self.theme = theme;
         self
     }
 
@@ -100,7 +82,7 @@ impl<'a> DragFloat<'a> {
             let x = x(state);
             let delta = cursor_position.x - x;
 
-            let new_active = if inputs_released == Inputs::MOUSE_BUTTON_LEFT {
+            let new_active = if inputs_released == Inputs::MB_LEFT {
                 ctrl.set_active(false);
                 false
             } else {
@@ -112,7 +94,7 @@ impl<'a> DragFloat<'a> {
 
             *self.value = new_value;
             (new_active, old_value != new_value)
-        } else if hovered && inputs_pressed == Inputs::MOUSE_BUTTON_LEFT {
+        } else if hovered && inputs_pressed == Inputs::MB_LEFT {
             ctrl.set_active(true);
             let state = ctrl.state_mut();
             set_value(state, *self.value);
@@ -150,7 +132,7 @@ impl<'a> DragFloat<'a> {
 
         let mut text: ArrayString<256> = ArrayString::new();
         let _ = write!(text, "{:.3}", *self.value);
-        ctrl.draw_text_ex(
+        ctrl.draw_text(
             true,
             None,
             0.0,

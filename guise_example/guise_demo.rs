@@ -1,4 +1,4 @@
-use std::alloc::Allocator;
+use std::alloc::{Allocator, Global};
 use std::fmt::Write as _;
 use std::time::Duration;
 
@@ -46,8 +46,8 @@ pub struct State {
     pub graph_vertex_count_max: usize,
     pub graph_index_count: [usize; GRAPH_LEN],
     pub graph_index_count_max: usize,
-    pub input_text_text_heap: String,
-    pub input_text_text_inline: ArrayString<256>,
+    pub input_text_text_heap: guise::AsciiVec<Global>,
+    pub input_text_text_inline: guise::AsciiArrayVec<64>,
     pub drag_float_value: f32,
     pub drag_float_value_clamped: f32,
     pub drag_int_value: i32,
@@ -67,7 +67,9 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::begin_window(frame, line!(), "26%", "1%", "73%", "98%");
 
         {
-            guise::begin_panel_ex(frame, line!(), "100%", "50%", guise::Layout::Horizontal);
+            guise::Panel::new(line!(), "100%", "50%")
+                .set_layout(guise::Layout::Horizontal)
+                .begin(frame);
 
             {
                 guise::begin_panel(frame, line!(), "50%", "100%");
@@ -86,9 +88,10 @@ pub fn draw_ui<A: Allocator + Clone>(
                 }
 
                 {
-                    let mut panel_ctrl = guise::begin_panel(frame, line!(), "100%", "35%");
-
-                    panel_ctrl.draw_text(
+                    guise::begin_panel(frame, line!(), "100%", "35%");
+                    guise::text(
+                        frame,
+                        0,
                         fmt!(
                             s,
                             "Button click count {}\nText Input submit count {}\nText Input cancel \
@@ -97,16 +100,15 @@ pub fn draw_ui<A: Allocator + Clone>(
                             state.input_text_submit_count,
                             state.input_text_cancel_count,
                         ),
-                        0xffffffff,
                     );
-
                     guise::end_panel(frame);
                 }
 
                 {
-                    let mut panel_ctrl = guise::begin_panel(frame, line!(), "100%", "50%");
-
-                    panel_ctrl.draw_text(
+                    guise::begin_panel(frame, line!(), "100%", "50%");
+                    guise::text(
+                        frame,
+                        0,
                         fmt!(
                             s,
                             "running time: {:.3}s\nframe count:  {}\nframe build time: \
@@ -119,9 +121,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                             stats.frame_total_duration.as_secs_f32(),
                             stats.frame_ctrl_count,
                         ),
-                        0xffffffff,
                     );
-
                     guise::end_panel(frame);
                 }
 
@@ -131,7 +131,11 @@ pub fn draw_ui<A: Allocator + Clone>(
             {
                 guise::begin_panel(frame, line!(), "50%", "100%");
 
-                if guise::Button::new(0, "<image>").set_image(0).show(frame) {
+                if guise::Button::new(0, "<image>")
+                    .set_image(0)
+                    .set_tooltip("An image button")
+                    .show(frame)
+                {
                     state.button_click_count += 1;
                 }
 
@@ -152,7 +156,9 @@ pub fn draw_ui<A: Allocator + Clone>(
         }
 
         {
-            guise::begin_panel_ex(frame, line!(), "100%", "50%", guise::Layout::Horizontal);
+            guise::Panel::new(line!(), "100%", "50%")
+                .set_layout(guise::Layout::Horizontal)
+                .begin(frame);
 
             {
                 guise::begin_panel(frame, line!(), "50%", "100%");
@@ -163,8 +169,12 @@ pub fn draw_ui<A: Allocator + Clone>(
                     let k = i + 2;
 
                     guise::text(frame, i, TEXT);
-                    guise::text_ex(frame, j, TEXT, guise::Align::Center);
-                    guise::text_ex(frame, k, TEXT, guise::Align::End);
+                    guise::Text::new(j, TEXT)
+                        .set_horizontal_align(guise::Align::Center)
+                        .show(frame);
+                    guise::Text::new(k, TEXT)
+                        .set_horizontal_align(guise::Align::End)
+                        .show(frame);
                 }
 
                 guise::end_panel(frame);
@@ -326,7 +336,7 @@ pub fn draw_ui<A: Allocator + Clone>(
             let mut window_ctrl = guise::Window::new(line!(), 5.0, 5.0, 150.0, 50.0)
                 .set_resizable(false)
                 .begin(frame);
-            window_ctrl.draw_text_ex(
+            window_ctrl.draw_text(
                 false,
                 None,
                 0.0,
@@ -343,7 +353,7 @@ pub fn draw_ui<A: Allocator + Clone>(
             let mut window_ctrl = guise::Window::new(line!(), 100.0, 100.0, 150.0, 50.0)
                 .set_movable(false)
                 .begin(frame);
-            window_ctrl.draw_text_ex(
+            window_ctrl.draw_text(
                 false,
                 None,
                 0.0,
@@ -361,7 +371,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                 .set_movable(false)
                 .set_resizable(false)
                 .begin(frame);
-            window_ctrl.draw_text_ex(
+            window_ctrl.draw_text(
                 false,
                 None,
                 0.0,
@@ -376,7 +386,7 @@ pub fn draw_ui<A: Allocator + Clone>(
 
         {
             let mut window_ctrl = guise::begin_window(frame, line!(), 20.0, 160.0, 200.0, 60.0);
-            window_ctrl.draw_text_ex(
+            window_ctrl.draw_text(
                 false,
                 None,
                 0.0,
@@ -428,25 +438,19 @@ pub fn draw_ui<A: Allocator + Clone>(
             state.input_text_text_inline.clear();
         }
 
-        guise::drag_float(frame, line!(), &mut state.drag_float_value, 0.12);
-        guise::drag_float_ex(
-            frame,
-            line!(),
-            &mut state.drag_float_value_clamped,
-            0.001,
-            0.0,
-            1.0,
-        );
+        guise::drag_float(frame, line!(), &mut state.drag_float_value);
+        guise::DragFloat::new(line!(), &mut state.drag_float_value_clamped)
+            .set_speed(0.001)
+            .set_min(0.0)
+            .set_max(1.0)
+            .show(frame);
 
-        guise::drag_int(frame, line!(), &mut state.drag_int_value, 0.12);
-        guise::drag_int_ex(
-            frame,
-            line!(),
-            &mut state.drag_int_value_clamped,
-            0.1,
-            0,
-            100,
-        );
+        guise::drag_int(frame, line!(), &mut state.drag_int_value);
+        guise::DragInt::new(line!(), &mut state.drag_int_value_clamped)
+            .set_speed(0.1)
+            .set_min(0)
+            .set_max(100)
+            .show(frame);
 
         guise::end_window(frame);
     }

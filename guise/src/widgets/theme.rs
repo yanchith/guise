@@ -45,6 +45,12 @@ pub struct Theme {
     pub text_border: f32,
     pub text_padding: f32,
 
+    pub text_tooltip_border_color: u32,
+    pub text_tooltip_background_color: u32,
+    pub text_tooltip_text_color: u32,
+    pub text_tooltip_border: f32,
+    pub text_tooltip_padding: f32,
+
     pub input_text_border_color: u32,
     pub input_text_border_color_hovered: u32,
     pub input_text_border_color_active: u32,
@@ -157,6 +163,12 @@ impl Theme {
         text_margin: 0.0,
         text_border: 0.0,
         text_padding: 10.0,
+
+        text_tooltip_border_color: 0xa0a0a0ff,
+        text_tooltip_background_color: 0x606060d0,
+        text_tooltip_text_color: 0xffffffff,
+        text_tooltip_border: 1.0,
+        text_tooltip_padding: 10.0,
 
         input_text_border_color: 0xa0a0a050,
         input_text_border_color_hovered: 0xa0a0a070,

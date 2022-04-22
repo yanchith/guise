@@ -1,22 +1,10 @@
 use core::alloc::Allocator;
-use core::ops::Deref;
 
 use arrayvec::ArrayString;
 
-use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
+use crate::convert::{cast_u32, cast_usize};
+use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, TextStorage, Wrap};
 use crate::widgets::theme::Theme;
-
-// TODO(yan): This needs features. A lot of features. Arrow key and
-// mouse movement, copy/paste, undo, etc.
-
-// TODO(yan): Implement feature-flagged EditableText for popular smallstring
-// libraries, where applicable.
-//
-// TODO(yan): Reuse this in all text components.
-pub trait EditableText: Deref<Target = str> {
-    fn push(&mut self, c: char);
-    fn pop(&mut self);
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputTextSubmit {
@@ -27,7 +15,7 @@ pub enum InputTextSubmit {
 
 pub fn input_text<T, A>(frame: &mut Frame<A>, id: u32, text: &mut T) -> (bool, InputTextSubmit)
 where
-    T: EditableText,
+    T: TextStorage,
     A: Allocator + Clone,
 {
     InputText::new(id, text).show(frame)
@@ -41,7 +29,7 @@ pub struct InputText<'a, T> {
 
 impl<'a, T> InputText<'a, T>
 where
-    T: EditableText,
+    T: TextStorage,
 {
     pub fn new(id: u32, text: &'a mut T) -> Self {
         Self {
@@ -77,41 +65,109 @@ where
         let hovered = ctrl.hovered();
         let active = ctrl.active();
 
+        let mut text_cursor = text_cursor(ctrl.state());
+        text_cursor = u32::clamp(text_cursor, 0, cast_u32(self.text.len()));
+
         let (active, changed, submit) =
             if active && (!received_characters.is_empty() || inputs_pressed != Inputs::NONE) {
                 if inputs_pressed != Inputs::NONE {
+                    let text_len_u32 = cast_u32(self.text.len());
+
                     match inputs_pressed {
-                        Inputs::KEYBOARD_BACKSPACE => {
-                            self.text.pop();
-                            (true, true, InputTextSubmit::None)
+                        Inputs::KB_BACKSPACE => {
+                            if self.text.len() > 0 {
+                                if text_cursor == text_len_u32 {
+                                    self.text.truncate(self.text.len() - 1);
+                                    text_cursor -= 1;
+                                } else {
+                                    debug_assert!(text_cursor < text_len_u32);
+                                    if text_cursor > 0 {
+                                        // NB: Ok to unwrap, we are only removing.
+                                        self.text
+                                            .try_splice(cast_usize(text_cursor - 1), 1, "")
+                                            .unwrap();
+                                        text_cursor -= 1;
+                                    }
+                                }
+
+                                (true, true, InputTextSubmit::None)
+                            } else {
+                                (true, false, InputTextSubmit::None)
+                            }
                         }
-                        Inputs::KEYBOARD_ENTER => {
+
+                        Inputs::KB_DELETE => {
+                            if self.text.len() > 0 {
+                                if text_cursor == text_len_u32 - 1 {
+                                    self.text.truncate(self.text.len() - 1);
+                                } else if text_cursor < text_len_u32 - 1 {
+                                    self.text
+                                        .try_splice(cast_usize(text_cursor), 1, "")
+                                        .unwrap();
+                                }
+                                (true, true, InputTextSubmit::None)
+                            } else {
+                                (true, false, InputTextSubmit::None)
+                            }
+                        }
+
+                        Inputs::KB_LEFT_ARROW => {
+                            if text_cursor > 0 {
+                                text_cursor -= 1;
+                            }
+
+                            (true, false, InputTextSubmit::None)
+                        }
+
+                        Inputs::KB_RIGHT_ARROW => {
+                            if text_cursor < text_len_u32 {
+                                text_cursor += 1;
+                            }
+
+                            (true, false, InputTextSubmit::None)
+                        }
+
+                        Inputs::KB_ENTER => {
                             ctrl.set_active(false);
                             (false, false, InputTextSubmit::Submit)
                         }
-                        Inputs::KEYBOARD_ESCAPE => {
+
+                        Inputs::KB_ESCAPE => {
                             ctrl.set_active(false);
                             (false, false, InputTextSubmit::Cancel)
                         }
+
                         _ => (true, false, InputTextSubmit::None),
                     }
                 } else {
                     // TODO(yan): This likely won't be robust enough for
                     // multiple chars per frame. We should control chars like
                     // backspace, delete, enter here, but because we process
-                    // Inputs first, we never get here with special chars.
-                    for c in received_characters.chars() {
-                        self.text.push(c);
+                    // Inputs in the other branch, we never get here with
+                    // special chars.
+                    if text_cursor == cast_u32(self.text.len()) {
+                        let _ = self.text.try_extend(&received_characters);
+
+                        text_cursor = cast_u32(self.text.len());
+                    } else {
+                        let p = cast_usize(text_cursor);
+                        let _ = self.text.try_splice(p, 0, &received_characters);
+
+                        // NB: Text cursor operates on characters, so we have to
+                        // count them and not use the byte length.
+                        text_cursor += cast_u32(received_characters.chars().count());
                     }
 
                     (true, true, InputTextSubmit::None)
                 }
-            } else if hovered && inputs_pressed == Inputs::MOUSE_BUTTON_LEFT {
+            } else if hovered && inputs_pressed == Inputs::MB_LEFT {
                 ctrl.set_active(true);
                 (true, false, InputTextSubmit::None)
             } else {
                 (active, false, InputTextSubmit::None)
             };
+
+        set_text_cursor(ctrl.state_mut(), text_cursor);
 
         if active {
             ctrl.request_want_capture_keyboard();
@@ -138,14 +194,17 @@ where
         ctrl.set_draw_self(true);
         ctrl.set_draw_self_border_color(border_color);
         ctrl.set_draw_self_background_color(background_color);
-        ctrl.draw_text_ex(
+
+        // TODO(yan): The text cursor should always be on screen. This requires
+        // text layout to happen first.
+        ctrl.draw_text(
             true,
             None,
             border + padding,
             self.text,
             Align::Start,
             Align::Center,
-            Wrap::Word,
+            Wrap::None,
             text_color,
         );
 
@@ -155,22 +214,14 @@ where
     }
 }
 
-impl EditableText for alloc::string::String {
-    fn push(&mut self, c: char) {
-        self.push(c);
-    }
-
-    fn pop(&mut self) {
-        self.pop();
-    }
+fn text_cursor(state: &CtrlState) -> u32 {
+    u32::from_le_bytes([state[0], state[1], state[2], state[3]])
 }
 
-impl<const C: usize> EditableText for arrayvec::ArrayString<C> {
-    fn push(&mut self, c: char) {
-        let _ = self.try_push(c);
-    }
-
-    fn pop(&mut self) {
-        self.pop();
-    }
+fn set_text_cursor(state: &mut CtrlState, text_cursor: u32) {
+    let bytes = text_cursor.to_le_bytes();
+    state[0] = bytes[0];
+    state[1] = bytes[1];
+    state[2] = bytes[2];
+    state[3] = bytes[3];
 }

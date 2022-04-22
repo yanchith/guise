@@ -107,8 +107,8 @@ impl<'a> Window<'a> {
     pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
         let parent_size = frame.ctrl_inner_size();
         let cursor_position = frame.cursor_position();
-        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
-        let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
+        let lmb_released = frame.inputs_released() == Inputs::MB_LEFT;
 
         let mut ctrl = frame.push_ctrl(self.id);
         let hovered = ctrl.hovered();

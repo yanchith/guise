@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 
-/// Losslessly converts `n` to `u16` using `TryFrom` or panics.
+/// Losslessly converts `n` to [`u16`] using [`TryFrom`] or panics.
 ///
 /// # Panics
 ///
@@ -13,7 +13,7 @@ where
     n.try_into().expect("Expected N to fit in u16")
 }
 
-/// Losslessly converts `n` to `u32` using `TryFrom` or panics.
+/// Losslessly converts `n` to [`u32`] using [`TryFrom`] or panics.
 ///
 /// # Panics
 ///
@@ -26,7 +26,7 @@ where
     n.try_into().expect("Expected N to fit in u32")
 }
 
-/// Losslessly converts `n` to `usize` using `TryFrom` or panics.
+/// Losslessly converts `n` to [`usize`] using [`TryFrom`] or panics.
 ///
 /// # Panics
 ///

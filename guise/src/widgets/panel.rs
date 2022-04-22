@@ -18,24 +18,7 @@ where
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
 {
-    Panel::new(id, Layout::Vertical, width, height).begin(frame)
-}
-
-pub fn begin_panel_ex<'f, W, H, A>(
-    frame: &'f mut Frame<A>,
-    id: u32,
-    width: W,
-    height: H,
-    layout: Layout,
-) -> Ctrl<'f, A>
-where
-    W: TryInto<Size>,
-    H: TryInto<Size>,
-    <W as TryInto<Size>>::Error: Debug,
-    <H as TryInto<Size>>::Error: Debug,
-    A: Allocator + Clone,
-{
-    Panel::new(id, layout, width, height).begin(frame)
+    Panel::new(id, width, height).begin(frame)
 }
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
@@ -45,15 +28,16 @@ pub fn end_panel<A: Allocator + Clone>(frame: &mut Frame<A>) {
 
 pub struct Panel<'a> {
     id: u32,
+    width: Size,
+    height: Size,
+
     layout: Layout,
 
     theme: &'a Theme,
-    width: Size,
-    height: Size,
 }
 
 impl<'a> Panel<'a> {
-    pub fn new<W, H>(id: u32, layout: Layout, width: W, height: H) -> Self
+    pub fn new<W, H>(id: u32, width: W, height: H) -> Self
     where
         W: TryInto<Size>,
         H: TryInto<Size>,
@@ -65,12 +49,18 @@ impl<'a> Panel<'a> {
 
         Self {
             id,
-            layout,
-
-            theme: &Theme::DEFAULT,
             width,
             height,
+
+            layout: Layout::Vertical,
+
+            theme: &Theme::DEFAULT,
         }
+    }
+
+    pub fn set_layout(&mut self, layout: Layout) -> &mut Self {
+        self.layout = layout;
+        self
     }
 
     pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {

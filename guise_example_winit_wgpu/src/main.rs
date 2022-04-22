@@ -5,10 +5,9 @@ mod demo;
 #[path = "../../guise_example/guise_renderer_wgpu.rs"]
 mod renderer_wgpu;
 
+use std::alloc::Global;
 use std::iter;
 use std::time::{Duration, Instant};
-
-use arrayvec::ArrayString;
 
 fn main() {
     pretty_env_logger::init();
@@ -106,8 +105,8 @@ fn main() {
         graph_vertex_count_max: 0,
         graph_index_count: [0; demo::GRAPH_LEN],
         graph_index_count_max: 0,
-        input_text_text_heap: String::new(),
-        input_text_text_inline: ArrayString::new(),
+        input_text_text_heap: guise::AsciiVec::new_in(Global),
+        input_text_text_inline: guise::AsciiArrayVec::new(),
         drag_float_value: 1.0,
         drag_float_value_clamped: 0.0,
         drag_int_value: 1,
@@ -180,25 +179,25 @@ fn main() {
                 winit::event::WindowEvent::MouseInput { state, button, .. } => match state {
                     winit::event::ElementState::Pressed => match button {
                         winit::event::MouseButton::Left => {
-                            ui.press_inputs(guise::Inputs::MOUSE_BUTTON_LEFT);
+                            ui.press_inputs(guise::Inputs::MB_LEFT);
                         }
                         winit::event::MouseButton::Right => {
-                            ui.press_inputs(guise::Inputs::MOUSE_BUTTON_RIGHT);
+                            ui.press_inputs(guise::Inputs::MB_RIGHT);
                         }
                         winit::event::MouseButton::Middle => {
-                            ui.press_inputs(guise::Inputs::MOUSE_BUTTON_MIDDLE);
+                            ui.press_inputs(guise::Inputs::MB_MIDDLE);
                         }
                         _ => (),
                     },
                     winit::event::ElementState::Released => match button {
                         winit::event::MouseButton::Left => {
-                            ui.release_inputs(guise::Inputs::MOUSE_BUTTON_LEFT);
+                            ui.release_inputs(guise::Inputs::MB_LEFT);
                         }
                         winit::event::MouseButton::Right => {
-                            ui.release_inputs(guise::Inputs::MOUSE_BUTTON_RIGHT);
+                            ui.release_inputs(guise::Inputs::MB_RIGHT);
                         }
                         winit::event::MouseButton::Middle => {
-                            ui.release_inputs(guise::Inputs::MOUSE_BUTTON_MIDDLE);
+                            ui.release_inputs(guise::Inputs::MB_MIDDLE);
                         }
                         _ => (),
                     },
@@ -206,91 +205,91 @@ fn main() {
                 winit::event::WindowEvent::KeyboardInput { input, .. } => match input.state {
                     winit::event::ElementState::Pressed => match input.virtual_keycode {
                         Some(winit::event::VirtualKeyCode::Tab) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_TAB);
+                            ui.press_inputs(guise::Inputs::KB_TAB);
                         }
                         Some(winit::event::VirtualKeyCode::Left) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_LEFT_ARROW);
+                            ui.press_inputs(guise::Inputs::KB_LEFT_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Right) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_RIGHT_ARROW);
+                            ui.press_inputs(guise::Inputs::KB_RIGHT_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Up) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_UP_ARROW);
+                            ui.press_inputs(guise::Inputs::KB_UP_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Down) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_DOWN_ARROW);
+                            ui.press_inputs(guise::Inputs::KB_DOWN_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::PageUp) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_PAGE_UP);
+                            ui.press_inputs(guise::Inputs::KB_PAGE_UP);
                         }
                         Some(winit::event::VirtualKeyCode::PageDown) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_PAGE_DOWN);
+                            ui.press_inputs(guise::Inputs::KB_PAGE_DOWN);
                         }
                         Some(winit::event::VirtualKeyCode::Home) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_HOME);
+                            ui.press_inputs(guise::Inputs::KB_HOME);
                         }
                         Some(winit::event::VirtualKeyCode::End) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_END);
+                            ui.press_inputs(guise::Inputs::KB_END);
                         }
                         Some(winit::event::VirtualKeyCode::Insert) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_INSERT);
+                            ui.press_inputs(guise::Inputs::KB_INSERT);
                         }
                         Some(winit::event::VirtualKeyCode::Delete) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_DELETE);
+                            ui.press_inputs(guise::Inputs::KB_DELETE);
                         }
                         Some(winit::event::VirtualKeyCode::Back) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_BACKSPACE);
+                            ui.press_inputs(guise::Inputs::KB_BACKSPACE);
                         }
                         Some(winit::event::VirtualKeyCode::Return) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_ENTER);
+                            ui.press_inputs(guise::Inputs::KB_ENTER);
                         }
                         Some(winit::event::VirtualKeyCode::Escape) => {
-                            ui.press_inputs(guise::Inputs::KEYBOARD_ESCAPE);
+                            ui.press_inputs(guise::Inputs::KB_ESCAPE);
                         }
                         _ => (),
                     },
                     winit::event::ElementState::Released => match input.virtual_keycode {
                         Some(winit::event::VirtualKeyCode::Tab) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_TAB);
+                            ui.release_inputs(guise::Inputs::KB_TAB);
                         }
                         Some(winit::event::VirtualKeyCode::Left) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_LEFT_ARROW);
+                            ui.release_inputs(guise::Inputs::KB_LEFT_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Right) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_RIGHT_ARROW);
+                            ui.release_inputs(guise::Inputs::KB_RIGHT_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Up) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_UP_ARROW);
+                            ui.release_inputs(guise::Inputs::KB_UP_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::Down) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_DOWN_ARROW);
+                            ui.release_inputs(guise::Inputs::KB_DOWN_ARROW);
                         }
                         Some(winit::event::VirtualKeyCode::PageUp) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_PAGE_UP);
+                            ui.release_inputs(guise::Inputs::KB_PAGE_UP);
                         }
                         Some(winit::event::VirtualKeyCode::PageDown) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_PAGE_DOWN);
+                            ui.release_inputs(guise::Inputs::KB_PAGE_DOWN);
                         }
                         Some(winit::event::VirtualKeyCode::Home) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_HOME);
+                            ui.release_inputs(guise::Inputs::KB_HOME);
                         }
                         Some(winit::event::VirtualKeyCode::End) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_END);
+                            ui.release_inputs(guise::Inputs::KB_END);
                         }
                         Some(winit::event::VirtualKeyCode::Insert) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_INSERT);
+                            ui.release_inputs(guise::Inputs::KB_INSERT);
                         }
                         Some(winit::event::VirtualKeyCode::Delete) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_DELETE);
+                            ui.release_inputs(guise::Inputs::KB_DELETE);
                         }
                         Some(winit::event::VirtualKeyCode::Back) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_BACKSPACE);
+                            ui.release_inputs(guise::Inputs::KB_BACKSPACE);
                         }
                         Some(winit::event::VirtualKeyCode::Return) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_ENTER);
+                            ui.release_inputs(guise::Inputs::KB_ENTER);
                         }
                         Some(winit::event::VirtualKeyCode::Escape) => {
-                            ui.release_inputs(guise::Inputs::KEYBOARD_ESCAPE);
+                            ui.release_inputs(guise::Inputs::KB_ESCAPE);
                         }
                         _ => (),
                     },

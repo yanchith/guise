@@ -66,7 +66,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
         let parent_size = frame.ctrl_inner_size();
         let window_size = frame.window_size();
         let cursor_position = frame.cursor_position();
-        let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
+        let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.dropdown_margin);
 
@@ -142,7 +142,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             self.label
         };
 
-        ctrl.draw_text_ex(
+        ctrl.draw_text(
             false,
             None,
             0.0,
