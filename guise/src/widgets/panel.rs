@@ -5,47 +5,41 @@ use crate::core::{Ctrl, CtrlFlags, Frame, Layout, Rect};
 use crate::widgets::size::Size;
 use crate::widgets::theme::Theme;
 
-pub fn begin_panel<'f, W, H, A, TA>(
-    frame: &'f mut Frame<A, TA>,
+pub fn begin_panel<'f, W, H, A>(
+    frame: &'f mut Frame<A>,
     id: u32,
     width: W,
     height: H,
-) -> Ctrl<'f, A, TA>
+) -> Ctrl<'f, A>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
-    TA: Allocator,
 {
     Panel::new(id, Layout::Vertical, width, height).begin(frame)
 }
 
-pub fn begin_panel_ex<'f, W, H, A, TA>(
-    frame: &'f mut Frame<A, TA>,
+pub fn begin_panel_ex<'f, W, H, A>(
+    frame: &'f mut Frame<A>,
     id: u32,
     width: W,
     height: H,
     layout: Layout,
-) -> Ctrl<'f, A, TA>
+) -> Ctrl<'f, A>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
-    TA: Allocator,
 {
     Panel::new(id, layout, width, height).begin(frame)
 }
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
-pub fn end_panel<A, TA>(frame: &mut Frame<A, TA>)
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn end_panel<A: Allocator + Clone>(frame: &mut Frame<A>) {
     frame.pop_ctrl();
 }
 
@@ -84,11 +78,7 @@ impl<'a> Panel<'a> {
         self
     }
 
-    pub fn begin<'f, A, TA>(&self, frame: &'f mut Frame<A, TA>) -> Ctrl<'f, A, TA>
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
         let parent_size = frame.ctrl_inner_size();
 
         let mut ctrl = frame.push_ctrl(self.id);
@@ -111,11 +101,7 @@ impl<'a> Panel<'a> {
         ctrl
     }
 
-    pub fn end<A, TA>(&self, frame: &mut Frame<A, TA>)
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn end<A: Allocator + Clone>(&self, frame: &mut Frame<A>) {
         frame.pop_ctrl();
     }
 }

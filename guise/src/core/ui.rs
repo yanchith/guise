@@ -253,17 +253,16 @@ struct CtrlNode {
     layout_cache_content_size: Vec2,
 }
 
-pub struct Ui<A: Allocator + Clone, TA: Allocator> {
-    // TODO(yan): This is never reset! Consider not storing it at all, and
-    // instead having duplicate versions of Ui::new_in, Ui::begin_frame and
-    // Ui::end_frame that get the temp_allocator too. The simpler versions use
-    // the permanent allocator there. Ctrl::draw_text_ex can get the
-    // temp_allocator implicitly, passed from Ui to Frame, and from Frame to
-    // Ctrl.
-    temp_allocator: TA,
+pub struct Ui<A: Allocator + Clone> {
+    // TODO(yan): @Memory We use this allocator for both permanent and temporary
+    // memory, which requires some acrobatics to ensure we don't prevent
+    // temporary memory reclamation, if the allocator is a bump
+    // allocator. Should we split off a temporary allocator from this one for
+    // internal use?
+    allocator: A,
 
     draw_primitives: Vec<DrawPrimitive, A>,
-    draw_list: DrawList,
+    draw_list: DrawList<A>,
 
     font_atlas: FontAtlas<A>,
     font_atlas_texture_id: u64,
@@ -298,7 +297,7 @@ pub struct Ui<A: Allocator + Clone, TA: Allocator> {
     want_capture_mouse: bool,
 }
 
-impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
+impl<A: Allocator + Clone> Ui<A> {
     pub fn new_in(
         window_width: f32,
         window_height: f32,
@@ -311,12 +310,14 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
         // highest for sharpest looking fonts, or lower, if memory or speed is
         // an issue.
         font_rasterization_scale_factor: f32,
-        perm_allocator: A,
-        temp_allocator: TA,
+        allocator: A,
     ) -> Self {
-        let a1 = perm_allocator.clone();
-        let a2 = perm_allocator.clone();
-        let a3 = perm_allocator;
+        const NODE_CAPACITY: usize = 1024;
+
+        let a1 = allocator.clone();
+        let a2 = allocator.clone();
+        let a3 = allocator.clone();
+        let a4 = allocator.clone();
 
         let window_size = Vec2::new(window_width, window_height);
         let font_atlas = FontAtlas::new_in(
@@ -325,7 +326,6 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             font_size,
             font_rasterization_scale_factor,
             a1,
-            &temp_allocator,
         );
 
         let root_ctrl = CtrlNode {
@@ -360,18 +360,15 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             layout_cache_content_size: Vec2::ZERO,
         };
 
-        let mut tree = Vec::with_capacity_in(128, a2);
+        let mut tree = Vec::with_capacity_in(NODE_CAPACITY, a2);
         tree.push(root_ctrl.clone());
         tree.push(root_ctrl);
 
         Self {
-            temp_allocator,
+            allocator,
 
-            // TODO(yan): @Speed @Memory Pre-warmed capacities for
-            // draw_primitives and draw_list!
-            draw_primitives: Vec::new_in(a3),
-            // TODO(yan): @Speed @Memory Put draw_list into perm allocator.
-            draw_list: DrawList::new(),
+            draw_primitives: Vec::with_capacity_in(NODE_CAPACITY, a3),
+            draw_list: DrawList::with_capacity_in(NODE_CAPACITY, a4),
 
             font_atlas,
             font_atlas_texture_id: 0,
@@ -458,7 +455,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
         )
     }
 
-    pub fn begin_frame(&mut self) -> Frame<'_, A, TA> {
+    pub fn begin_frame(&mut self) -> Frame<'_, A> {
         // NB: Clear inputs from GUI to platform to.
         self.draw_primitives.clear();
         self.draw_list.clear();
@@ -493,7 +490,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             &self.tree,
             OVERLAY_ROOT_IDX,
             self.cursor_position,
-            &self.temp_allocator,
+            &self.allocator,
         );
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
@@ -515,12 +512,8 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
         }
 
         if self.hovered_capturing_ctrl_idx == None {
-            self.hovered_ctrl_idx = find_hovered_ctrl(
-                &self.tree,
-                ROOT_IDX,
-                self.cursor_position,
-                &self.temp_allocator,
-            );
+            self.hovered_ctrl_idx =
+                find_hovered_ctrl(&self.tree, ROOT_IDX, self.cursor_position, &self.allocator);
         }
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
@@ -541,11 +534,11 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             }
         }
 
-        fn find_hovered_ctrl<TA: Allocator>(
+        fn find_hovered_ctrl<T: Allocator>(
             tree: &[CtrlNode],
             ctrl_idx: usize,
             cursor_position: Vec2,
-            temp_allocator: &TA,
+            temp_allocator: &T,
         ) -> Option<usize> {
             let ctrl = &tree[ctrl_idx];
             let ctrl_rect_absolute = Rect::new(
@@ -736,7 +729,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
         //
 
         let mut relocations: Vec<(usize, usize), _> =
-            Vec::with_capacity_in(self.tree.len(), &self.temp_allocator);
+            Vec::with_capacity_in(self.tree.len(), &self.allocator);
 
         fn apply_relocation(idx_to_relocate: &mut Option<usize>, src: usize, dst: usize) {
             if let Some(idx) = idx_to_relocate.as_mut() {
@@ -779,6 +772,10 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
                 apply_relocation(&mut ctrl.sibling_idx, src, dst);
             }
         }
+
+        // NB: Drop relocations eagerly, so that if the allocator is a bump
+        // allocator, we don't prevent it from reclaiming the memory.
+        drop(relocations);
 
         //
         // Update layout.
@@ -877,7 +874,7 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             &self.draw_primitives,
             self.font_atlas_texture_id,
             &mut self.draw_list,
-            &self.temp_allocator,
+            &self.allocator, // XXX: temp_allocator
         );
         render(
             &self.tree,
@@ -886,17 +883,19 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
             &self.draw_primitives,
             self.font_atlas_texture_id,
             &mut self.draw_list,
-            &self.temp_allocator,
+            &self.allocator, // XXX: temp_allocator
         );
 
-        fn render<TA: Allocator>(
+        // TODO(yan): @Memory If the allocator is a bump allocator, we
+        // potentially prevent it from reclaiming memory if draw_list grows.
+        fn render<A: Allocator + Clone>(
             tree: &[CtrlNode],
             ctrl_idx: usize,
             parent_ctrl_scissor_rect: Rect,
             draw_primitives: &[DrawPrimitive],
             font_atlas_texture_id: u64,
-            draw_list: &mut DrawList,
-            temp_allocator: &TA,
+            draw_list: &mut DrawList<A>,
+            temp_allocator: &A,
         ) {
             let ctrl = &tree[ctrl_idx];
             let ctrl_rect_absolute = Rect::new(
@@ -1103,12 +1102,12 @@ impl<A: Allocator + Clone, TA: Allocator> Ui<A, TA> {
     }
 }
 
-pub struct Frame<'a, A: Allocator + Clone, TA: Allocator> {
-    ui: &'a mut Ui<A, TA>,
+pub struct Frame<'a, A: Allocator + Clone> {
+    ui: &'a mut Ui<A>,
 }
 
-impl<'a, A: Allocator + Clone, TA: Allocator> Frame<'a, A, TA> {
-    pub fn push_ctrl(&mut self, id: u32) -> Ctrl<'_, A, TA> {
+impl<'a, A: Allocator + Clone> Frame<'a, A> {
+    pub fn push_ctrl(&mut self, id: u32) -> Ctrl<'_, A> {
         // Push a control onto the tree. The control can either be completely
         // new, or already present in the tree from previous frame. Controls are
         // identified by their ID, which has to be unique among children of a
@@ -1429,13 +1428,13 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Frame<'a, A, TA> {
     }
 }
 
-pub struct Ctrl<'a, A: Allocator + Clone, TA: Allocator> {
+pub struct Ctrl<'a, A: Allocator + Clone> {
     idx: usize,
-    ui: &'a mut Ui<A, TA>,
+    ui: &'a mut Ui<A>,
 }
 
 // TODO(yan): Vertical and horizontal align.
-impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
+impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
     pub fn set_active(&mut self, active: bool) {
         if active {
             self.ui.active_ctrl_idx = Some(self.idx);
@@ -1667,7 +1666,10 @@ impl<'a, A: Allocator + Clone, TA: Allocator> Ctrl<'a, A, TA> {
             width: f32,
         }
 
-        let mut lines: Vec<Line, _> = Vec::new_in(&self.ui.temp_allocator);
+        // TODO(yan): @Memory If the allocator is a bump allocator, we
+        // potentially prevent it from reclaiming memory if draw_primitives
+        // grow.
+        let mut lines: Vec<Line, _> = Vec::new_in(&self.ui.allocator);
 
         let mut last_char_was_whitespace = false;
         let mut begun_word: bool;

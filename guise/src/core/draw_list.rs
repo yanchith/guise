@@ -1,4 +1,5 @@
 use alloc::vec::Vec;
+use core::alloc::Allocator;
 
 use crate::convert::cast_u32;
 use crate::core::math::Rect;
@@ -24,19 +25,22 @@ pub struct Vertex {
     pub color: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct DrawList {
-    commands: Vec<Command>,
-    vertices: Vec<Vertex>,
-    indices: Vec<u32>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct DrawList<A: Allocator + Clone> {
+    commands: Vec<Command, A>,
+    vertices: Vec<Vertex, A>,
+    indices: Vec<u32, A>,
 }
 
-impl DrawList {
-    pub fn new() -> Self {
+impl<A: Allocator + Clone> DrawList<A> {
+    pub fn with_capacity_in(capacity: usize, allocator: A) -> Self {
+        let vertex_capacity: usize = capacity * 4;
+        let index_capacity: usize = capacity * 6;
+
         Self {
-            commands: Vec::new(),
-            vertices: Vec::new(),
-            indices: Vec::new(),
+            commands: Vec::with_capacity_in(capacity, allocator.clone()),
+            vertices: Vec::with_capacity_in(vertex_capacity, allocator.clone()),
+            indices: Vec::with_capacity_in(index_capacity, allocator),
         }
     }
 

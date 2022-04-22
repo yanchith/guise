@@ -8,26 +8,23 @@ use crate::widgets::theme::Theme;
 
 // TODO(yan): Do DragInt2, DragInt3, DragInt4.
 
-pub fn drag_int<A, TA>(frame: &mut Frame<A, TA>, id: u32, value: &mut i32, speed: f32) -> bool
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn drag_int<A: Allocator + Clone>(
+    frame: &mut Frame<A>,
+    id: u32,
+    value: &mut i32,
+    speed: f32,
+) -> bool {
     DragInt::new(id, value).set_speed(speed).show(frame)
 }
 
-pub fn drag_int_ex<A, TA>(
-    frame: &mut Frame<A, TA>,
+pub fn drag_int_ex<A: Allocator + Clone>(
+    frame: &mut Frame<A>,
     id: u32,
     value: &mut i32,
     speed: f32,
     min: i32,
     max: i32,
-) -> bool
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+) -> bool {
     DragInt::new(id, value)
         .set_speed(speed)
         .set_min(min)
@@ -78,11 +75,7 @@ impl<'a> DragInt<'a> {
         self
     }
 
-    pub fn show<A, TA>(&mut self, frame: &mut Frame<A, TA>) -> bool
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
         let parent_size = frame.ctrl_inner_size();
         let cursor_position = frame.cursor_position();
         let inputs_pressed = frame.inputs_pressed();

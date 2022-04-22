@@ -10,14 +10,14 @@ const ACTIVITY_MOVE: u8 = 1;
 const ACTIVITY_RESIZE: u8 = 2;
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
-pub fn begin_window<'f, X, Y, W, H, A, TA>(
-    frame: &'f mut Frame<A, TA>,
+pub fn begin_window<'f, X, Y, W, H, A>(
+    frame: &'f mut Frame<A>,
     id: u32,
     x: X,
     y: Y,
     width: W,
     height: H,
-) -> Ctrl<'f, A, TA>
+) -> Ctrl<'f, A>
 where
     X: TryInto<Size>,
     Y: TryInto<Size>,
@@ -28,16 +28,11 @@ where
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
-    TA: Allocator,
 {
     Window::new(id, x, y, width, height).begin(frame)
 }
 
-pub fn end_window<A, TA>(frame: &mut Frame<A, TA>)
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn end_window<A: Allocator + Clone>(frame: &mut Frame<A>) {
     frame.pop_ctrl();
 }
 
@@ -109,11 +104,7 @@ impl<'a> Window<'a> {
         self
     }
 
-    pub fn begin<'f, A, TA>(&self, frame: &'f mut Frame<A, TA>) -> Ctrl<'f, A, TA>
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
         let parent_size = frame.ctrl_inner_size();
         let cursor_position = frame.cursor_position();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
@@ -301,11 +292,7 @@ impl<'a> Window<'a> {
         ctrl
     }
 
-    pub fn end<A, TA>(&self, frame: &mut Frame<A, TA>)
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn end<A: Allocator + Clone>(&self, frame: &mut Frame<A>) {
         frame.pop_ctrl();
     }
 }

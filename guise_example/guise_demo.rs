@@ -55,11 +55,11 @@ pub struct State {
     pub dropdown_selected_option: Option<usize>,
 }
 
-pub fn draw_ui<A, TA>(frame: &mut guise::Frame<A, TA>, stats: &Stats, state: &mut State)
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn draw_ui<A: Allocator + Clone>(
+    frame: &mut guise::Frame<A>,
+    stats: &Stats,
+    state: &mut State,
+) {
     let time = stats.running_duration.as_secs_f32();
     let mut s: ArrayString<1024> = ArrayString::new();
 

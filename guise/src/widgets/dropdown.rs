@@ -22,8 +22,8 @@ use crate::widgets::theme::Theme;
 // }
 //
 
-pub fn dropdown<T, A, TA>(
-    frame: &mut Frame<A, TA>,
+pub fn dropdown<T, A>(
+    frame: &mut Frame<A>,
     id: u32,
     label: &str,
     options: &[T],
@@ -32,7 +32,6 @@ pub fn dropdown<T, A, TA>(
 where
     T: AsRef<str>,
     A: Allocator + Clone,
-    TA: Allocator,
 {
     Dropdown::new(id, label, options, selected).show(frame)
 }
@@ -63,11 +62,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
         self
     }
 
-    pub fn show<A, TA>(&mut self, frame: &mut Frame<A, TA>) -> bool
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
         let parent_size = frame.ctrl_inner_size();
         let window_size = frame.window_size();
         let cursor_position = frame.cursor_position();

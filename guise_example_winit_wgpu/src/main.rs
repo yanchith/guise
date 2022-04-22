@@ -75,7 +75,6 @@ fn main() {
             // sharpness. Why? Is it the missing subpixel rasterization?
             window.scale_factor() as f32,
             std::alloc::Global,
-            std::alloc::Global,
         )
     };
 

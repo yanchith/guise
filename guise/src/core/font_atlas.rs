@@ -207,13 +207,12 @@ pub struct FontAtlas<A: Allocator + Clone> {
 }
 
 impl<A: Allocator + Clone> FontAtlas<A> {
-    pub fn new_in<TA: Allocator>(
+    pub fn new_in(
         font_bytes: &[u8],
         unicode_range_flags: UnicodeRangeFlags,
         font_size: f32,
         font_scale_factor: f32,
-        perm_allocator: A,
-        temp_allocator: &TA,
+        allocator: A,
     ) -> FontAtlas<A> {
         let font_size_scaled = font_size * font_scale_factor;
 
@@ -239,8 +238,15 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
         let mut max_atlas_glyph_width: u16 = 0;
         let mut max_atlas_glyph_height: u16 = 0;
+
+        // NB: The order of these is allocations is important. If the user
+        // provides a simple allocator, like a bump allocator, allocating
+        // temporary memory after permanent memory will allow it to be
+        // reclaimed.
+        let mut glyph_index_to_info =
+            HashMap::with_capacity_in(cast_usize(codepoint_count), allocator.clone());
         let mut glyph_index_to_rasterized =
-            HashMap::with_capacity_in(cast_usize(codepoint_count), temp_allocator);
+            HashMap::with_capacity_in(cast_usize(codepoint_count), &allocator);
 
         for c in unicode_range_flags
             .codepoint_ranges_iter()
@@ -310,9 +316,6 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                 atlas_image[index + 3] = 255;
             }
         }
-
-        let mut glyph_index_to_info =
-            HashMap::with_capacity_in(cast_usize(codepoint_count), perm_allocator);
 
         let mut cell_index = 1;
         for c in unicode_range_flags

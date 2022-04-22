@@ -3,19 +3,16 @@ use core::alloc::Allocator;
 use crate::core::{Align, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn text<A, TA>(frame: &mut Frame<A, TA>, id: u32, text: &str)
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn text<A: Allocator + Clone>(frame: &mut Frame<A>, id: u32, text: &str) {
     Text::new(id, text).show(frame);
 }
 
-pub fn text_ex<A, TA>(frame: &mut Frame<A, TA>, id: u32, text: &str, horizontal_align: Align)
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn text_ex<A: Allocator + Clone>(
+    frame: &mut Frame<A>,
+    id: u32,
+    text: &str,
+    horizontal_align: Align,
+) {
     Text::new(id, text)
         .set_horizontal_align(horizontal_align)
         .show(frame);
@@ -48,11 +45,7 @@ impl<'a> Text<'a> {
         self
     }
 
-    pub fn show<A, TA>(&self, frame: &mut Frame<A, TA>)
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn show<A: Allocator + Clone>(&self, frame: &mut Frame<A>) {
         let parent_size = frame.ctrl_inner_size();
 
         let margin = self.theme.text_margin;

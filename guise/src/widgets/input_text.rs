@@ -25,15 +25,10 @@ pub enum InputTextSubmit {
     Cancel,
 }
 
-pub fn input_text<T, A, TA>(
-    frame: &mut Frame<A, TA>,
-    id: u32,
-    text: &mut T,
-) -> (bool, InputTextSubmit)
+pub fn input_text<T, A>(frame: &mut Frame<A>, id: u32, text: &mut T) -> (bool, InputTextSubmit)
 where
     T: EditableText,
     A: Allocator + Clone,
-    TA: Allocator,
 {
     InputText::new(id, text).show(frame)
 }
@@ -61,11 +56,7 @@ where
         self
     }
 
-    pub fn show<A, TA>(&mut self, frame: &mut Frame<A, TA>) -> (bool, InputTextSubmit)
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> (bool, InputTextSubmit) {
         let parent_size = frame.ctrl_inner_size();
         let inputs_pressed = frame.inputs_pressed();
         let received_characters: ArrayString<32> =

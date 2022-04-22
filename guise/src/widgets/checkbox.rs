@@ -3,11 +3,12 @@ use core::alloc::Allocator;
 use crate::core::{Align, CtrlFlags, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
-pub fn checkbox<A, TA>(frame: &mut Frame<A, TA>, id: u32, value: &mut bool, label: &str) -> bool
-where
-    A: Allocator + Clone,
-    TA: Allocator,
-{
+pub fn checkbox<A: Allocator + Clone>(
+    frame: &mut Frame<A>,
+    id: u32,
+    value: &mut bool,
+    label: &str,
+) -> bool {
     Checkbox::new(id, value, label).show(frame)
 }
 
@@ -33,11 +34,7 @@ impl<'a> Checkbox<'a> {
         self
     }
 
-    pub fn show<A, TA>(&mut self, frame: &mut Frame<A, TA>) -> bool
-    where
-        A: Allocator + Clone,
-        TA: Allocator,
-    {
+    pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
         let parent_size = frame.ctrl_inner_size();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MOUSE_BUTTON_LEFT;
         let lmb_released = frame.inputs_released() == Inputs::MOUSE_BUTTON_LEFT;
