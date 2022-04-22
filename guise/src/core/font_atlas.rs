@@ -202,7 +202,7 @@ pub struct FontAtlas<A: Allocator + Clone> {
     image: Vec<u8>,
     image_width: u16,
     image_height: u16,
-    glyph_index_to_info: HashMap<usize, GlyphInfo, DefaultHashBuilder, A>,
+    glyph_index_to_info: HashMap<u16, GlyphInfo, DefaultHashBuilder, A>,
     missing_glyph_info: GlyphInfo,
 }
 
