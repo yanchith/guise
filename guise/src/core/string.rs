@@ -183,7 +183,7 @@ impl<A: Allocator> TextStorage for AsciiVec<A> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AsciiArrayVec<const N: usize>(ArrayVec<u8, N>);
 
 impl<const N: usize> AsciiArrayVec<N> {
