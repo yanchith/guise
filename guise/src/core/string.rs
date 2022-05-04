@@ -31,6 +31,7 @@ pub trait TextStorage: Deref<Target = str> {
     ) -> Result<(), TextCapacityError>;
 }
 
+#[derive(Debug)]
 pub struct AsciiVec<A: Allocator>(Vec<u8, A>);
 
 impl<A: Allocator> AsciiVec<A> {
@@ -64,6 +65,38 @@ impl<A: Allocator> AsciiVec<A> {
     }
 }
 
+// NB: Implemented manually, because PartialEq/Eq/Hash are not implemented for
+// some allocators e.g. Global, and derive wouldn't generate the impl. Also
+// hashing strings is a bit special in libcore, so we need to match that
+// behavior.
+impl<A: Allocator> PartialEq for AsciiVec<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl<A: Allocator> PartialEq<str> for AsciiVec<A> {
+    fn eq(&self, other: &str) -> bool {
+        self.0.eq(other.as_bytes())
+    }
+}
+
+impl<'a, A: Allocator> PartialEq<&'a str> for AsciiVec<A> {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.0.eq(other.as_bytes())
+    }
+}
+
+impl<A: Allocator> Eq for AsciiVec<A> {}
+
+impl<A: Allocator> Hash for AsciiVec<A> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
+        // this as a &str, not &[u8]
+        Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
+    }
+}
+
 impl<A: Allocator> AsRef<str> for AsciiVec<A> {
     fn as_ref(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.0) }
@@ -87,36 +120,6 @@ impl<A: Allocator> Deref for AsciiVec<A> {
 impl<A: Allocator> fmt::Display for AsciiVec<A> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", unsafe { str::from_utf8_unchecked(&self.0) })
-    }
-}
-
-// NB: Implemented manually, so it doesn't fail trying to find a Hash impl for
-// the allocator.
-impl<A: Allocator> Hash for AsciiVec<A> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
-        // this as a &str, not &[u8]
-        Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
-    }
-}
-
-// NB: Implemented manually, because Eq isn't implemented for some allocators
-// e.g. Global, and derive wouldn't generate the impl.
-impl<A: Allocator> PartialEq for AsciiVec<A> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
-    }
-}
-
-impl<A: Allocator> PartialEq<str> for AsciiVec<A> {
-    fn eq(&self, other: &str) -> bool {
-        self.0.eq(other.as_bytes())
-    }
-}
-
-impl<'a, A: Allocator> PartialEq<&'a str> for AsciiVec<A> {
-    fn eq(&self, other: &&'a str) -> bool {
-        self.0.eq(other.as_bytes())
     }
 }
 
@@ -180,6 +183,7 @@ impl<A: Allocator> TextStorage for AsciiVec<A> {
     }
 }
 
+#[derive(Debug)]
 pub struct AsciiArrayVec<const N: usize>(ArrayVec<u8, N>);
 
 impl<const N: usize> AsciiArrayVec<N> {
@@ -213,6 +217,36 @@ impl<const N: usize> AsciiArrayVec<N> {
     }
 }
 
+// NB: Implemented manually, because to have all possible impls of PartialEq, as
+// well as matching string hashing from libcore.
+impl<const N: usize> PartialEq for AsciiArrayVec<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
+impl<const N: usize> PartialEq<str> for AsciiArrayVec<N> {
+    fn eq(&self, other: &str) -> bool {
+        self.0.eq(other.as_bytes())
+    }
+}
+
+impl<'a, const N: usize> PartialEq<&'a str> for AsciiArrayVec<N> {
+    fn eq(&self, other: &&'a str) -> bool {
+        self.0.eq(other.as_bytes())
+    }
+}
+
+impl<const N: usize> Eq for AsciiArrayVec<N> {}
+
+impl<const N: usize> Hash for AsciiArrayVec<N> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
+        // this as a &str, not &[u8]
+        Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
+    }
+}
+
 impl<const N: usize> AsRef<str> for AsciiArrayVec<N> {
     fn as_ref(&self) -> &str {
         unsafe { str::from_utf8_unchecked(&self.0) }
@@ -236,36 +270,6 @@ impl<const N: usize> Deref for AsciiArrayVec<N> {
 impl<const N: usize> fmt::Display for AsciiArrayVec<N> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", unsafe { str::from_utf8_unchecked(&self.0) })
-    }
-}
-
-// NB: Implemented manually, so it doesn't fail trying to find a Hash impl for
-// the allocator.
-impl<const N: usize> Hash for AsciiArrayVec<N> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
-        // this as a &str, not &[u8]
-        Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
-    }
-}
-
-// NB: Implemented manually, because Eq isn't implemented for some allocators
-// e.g. Global, and derive wouldn't generate the impl.
-impl<const N: usize> PartialEq for AsciiArrayVec<N> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
-    }
-}
-
-impl<const N: usize> PartialEq<str> for AsciiArrayVec<N> {
-    fn eq(&self, other: &str) -> bool {
-        self.0.eq(other.as_bytes())
-    }
-}
-
-impl<'a, const N: usize> PartialEq<&'a str> for AsciiArrayVec<N> {
-    fn eq(&self, other: &&'a str) -> bool {
-        self.0.eq(other.as_bytes())
     }
 }
 
