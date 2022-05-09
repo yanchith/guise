@@ -5,6 +5,9 @@ use crate::core::{Ctrl, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Vec2}
 use crate::widgets::size::Size;
 use crate::widgets::theme::Theme;
 
+const FLAGS: CtrlFlags =
+    CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE;
+
 const ACTIVITY_NONE: u8 = 0;
 const ACTIVITY_MOVE: u8 = 1;
 const ACTIVITY_RESIZE: u8 = 2;
@@ -45,6 +48,7 @@ pub struct Window<'a> {
 
     movable: bool,
     resizable: bool,
+    open_on_top: bool,
 
     layout: Layout,
 
@@ -77,6 +81,7 @@ impl<'a> Window<'a> {
 
             movable: true,
             resizable: true,
+            open_on_top: true,
 
             layout: Layout::Vertical,
 
@@ -91,6 +96,11 @@ impl<'a> Window<'a> {
 
     pub fn set_resizable(&mut self, resizable: bool) -> &mut Self {
         self.resizable = resizable;
+        self
+    }
+
+    pub fn set_open_on_top(&mut self, open_on_top: bool) -> &mut Self {
+        self.open_on_top = open_on_top;
         self
     }
 
@@ -114,7 +124,7 @@ impl<'a> Window<'a> {
         let hovered = ctrl.hovered();
 
         let state = ctrl.state();
-        let (x, y, mut width, mut height, activity) = if initialized(state) {
+        let (x, y, mut width, mut height, activity, initialized) = if initialized(state) {
             let (x, y) = if self.movable {
                 (x(state), y(state))
             } else {
@@ -136,7 +146,7 @@ impl<'a> Window<'a> {
                 (activity, _, _) => activity,
             };
 
-            (x, y, width, height, activity)
+            (x, y, width, height, activity, true)
         } else {
             (
                 self.x.resolve(parent_size.x),
@@ -144,14 +154,11 @@ impl<'a> Window<'a> {
                 self.width.resolve(parent_size.x),
                 self.height.resolve(parent_size.y),
                 ACTIVITY_NONE,
+                false,
             )
         };
 
-        ctrl.set_flags(if self.movable || self.resizable {
-            CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE
-        } else {
-            CtrlFlags::CAPTURE_SCROLL
-        });
+        ctrl.set_flags(FLAGS);
         ctrl.set_layout(self.layout);
         ctrl.set_rect(Rect::new(x, y, width, height));
         ctrl.set_padding(self.theme.window_padding);
@@ -215,8 +222,6 @@ impl<'a> Window<'a> {
             set_activity_start_y(state, height);
             set_activity_start_cursor_x(state, cursor_position.x);
             set_activity_start_cursor_y(state, cursor_position.y);
-
-            ctrl.set_active(true);
         } else if activity == ACTIVITY_MOVE {
             if lmb_released {
                 set_activity(state, ACTIVITY_NONE);
@@ -245,7 +250,9 @@ impl<'a> Window<'a> {
             set_activity_start_y(state, y);
             set_activity_start_cursor_x(state, cursor_position.x);
             set_activity_start_cursor_y(state, cursor_position.y);
+        }
 
+        if hovered && lmb_pressed || self.open_on_top && !initialized {
             ctrl.set_active(true);
         }
 
