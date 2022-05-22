@@ -27,6 +27,8 @@ pub struct Stats {
     pub frame_draw_list_vertex_count: usize,
     pub frame_draw_list_index_count: usize,
     pub frame_ctrl_count: usize,
+    pub want_capture_keyboard: bool,
+    pub want_capture_mouse: bool,
 }
 
 pub const GRAPH_LEN: usize = 60;
@@ -113,13 +115,15 @@ pub fn draw_ui<A: Allocator + Clone>(
                             s,
                             "running time: {:.3}s\nframe count:  {}\nframe build time: \
                              {:.3}/{:.3}s (current/max)\nframe total time: {:.3}s\nframe ctrl \
-                             count: {}",
+                             count: {}\nwant capture keyboard {}\nwant capture mouse {}",
                             time,
                             stats.frame_count,
                             stats.frame_build_duration.as_secs_f32(),
                             state.graph_frame_build_max,
                             stats.frame_total_duration.as_secs_f32(),
                             stats.frame_ctrl_count,
+                            stats.want_capture_keyboard,
+                            stats.want_capture_mouse,
                         ),
                     );
                     guise::end_panel(frame);

@@ -535,7 +535,6 @@ impl<A: Allocator + Clone> Ui<A> {
         );
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
-            self.want_capture_mouse = true;
 
             let mut ctrl_idx = hovered_ctrl_idx;
             let mut ctrl = &self.tree[hovered_ctrl_idx];
@@ -549,6 +548,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
             if ctrl.flags.intersects(CtrlFlags::CAPTURE_HOVER) {
                 self.hovered_capturing_ctrl_idx = Some(ctrl_idx);
+                self.want_capture_mouse = true;
             }
         }
 
@@ -558,8 +558,6 @@ impl<A: Allocator + Clone> Ui<A> {
         }
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
-            self.want_capture_mouse = true;
-
             let mut ctrl_idx = hovered_ctrl_idx;
             let mut ctrl = &self.tree[hovered_ctrl_idx];
 
@@ -572,6 +570,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
             if ctrl.flags.intersects(CtrlFlags::CAPTURE_HOVER) {
                 self.hovered_capturing_ctrl_idx = Some(ctrl_idx);
+                self.want_capture_mouse = true;
             }
         }
 

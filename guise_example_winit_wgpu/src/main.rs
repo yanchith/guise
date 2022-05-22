@@ -297,6 +297,8 @@ fn main() {
                 _ => (),
             },
             winit::event::Event::MainEventsCleared => {
+                let want_capture_keyboard = ui.want_capture_keyboard();
+                let want_capture_mouse = ui.want_capture_mouse();
                 let mut frame = ui.begin_frame();
                 demo::draw_ui(
                     &mut frame,
@@ -309,6 +311,8 @@ fn main() {
                         frame_draw_list_vertex_count,
                         frame_draw_list_index_count,
                         frame_ctrl_count,
+                        want_capture_keyboard,
+                        want_capture_mouse,
                     },
                     &mut state,
                 );
