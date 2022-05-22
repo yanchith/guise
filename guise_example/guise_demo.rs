@@ -442,20 +442,38 @@ pub fn draw_ui<A: Allocator + Clone>(
             state.input_text_text_inline.clear();
         }
 
-        guise::drag_float(frame, line!(), &mut state.drag_float_value);
-        guise::DragFloat::new(line!(), &mut state.drag_float_value_clamped)
-            .set_speed(0.00001)
-            .set_min(0.0)
-            .set_max(1.0)
-            .set_display_precision(8)
-            .show(frame);
+        guise::drag_float(
+            frame,
+            line!(),
+            &mut state.drag_float_value,
+            "Fast Float (unclamped)",
+        );
+        guise::DragFloat::new(
+            line!(),
+            &mut state.drag_float_value_clamped,
+            "Slow Float (clamped)",
+        )
+        .set_speed(0.00001)
+        .set_min(0.0)
+        .set_max(1.0)
+        .set_display_precision(6)
+        .show(frame);
 
-        guise::drag_int(frame, line!(), &mut state.drag_int_value, "Fast Int (unclamped)");
-        guise::DragInt::new(line!(), &mut state.drag_int_value_clamped, "Slow Int (clamped)")
-            .set_speed(0.05)
-            .set_min(0)
-            .set_max(100)
-            .show(frame);
+        guise::drag_int(
+            frame,
+            line!(),
+            &mut state.drag_int_value,
+            "Fast Int (unclamped)",
+        );
+        guise::DragInt::new(
+            line!(),
+            &mut state.drag_int_value_clamped,
+            "Slow Int (clamped)",
+        )
+        .set_speed(0.05)
+        .set_min(0)
+        .set_max(100)
+        .show(frame);
 
         guise::end_window(frame);
     }
