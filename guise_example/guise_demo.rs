@@ -450,9 +450,9 @@ pub fn draw_ui<A: Allocator + Clone>(
             .set_display_precision(8)
             .show(frame);
 
-        guise::drag_int(frame, line!(), &mut state.drag_int_value);
-        guise::DragInt::new(line!(), &mut state.drag_int_value_clamped)
-            .set_speed(0.1)
+        guise::drag_int(frame, line!(), &mut state.drag_int_value, "Fast Int (unclamped)");
+        guise::DragInt::new(line!(), &mut state.drag_int_value_clamped, "Slow Int (clamped)")
+            .set_speed(0.05)
             .set_min(0)
             .set_max(100)
             .show(frame);
