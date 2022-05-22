@@ -71,10 +71,14 @@ pub fn draw_ui<A: Allocator + Clone>(
         {
             guise::Panel::new(line!(), "100%", "50%")
                 .set_layout(guise::Layout::Horizontal)
+                .set_draw_padding(false)
                 .begin(frame);
 
             {
-                guise::begin_panel(frame, line!(), "50%", "100%");
+                guise::Panel::new(line!(), "50%", "100%")
+                    .set_draw_padding(false)
+                    .set_draw_border(false)
+                    .begin(frame);
 
                 guise::checkbox(
                     frame,
@@ -123,7 +127,10 @@ pub fn draw_ui<A: Allocator + Clone>(
             }
 
             {
-                guise::begin_panel(frame, line!(), "50%", "100%");
+                guise::Panel::new(line!(), "50%", "100%")
+                    .set_draw_padding(false)
+                    .set_draw_border(false)
+                    .begin(frame);
 
                 if guise::Button::new(0, "<image>")
                     .set_image(0)
@@ -152,10 +159,14 @@ pub fn draw_ui<A: Allocator + Clone>(
         {
             guise::Panel::new(line!(), "100%", "50%")
                 .set_layout(guise::Layout::Horizontal)
+                .set_draw_padding(false)
                 .begin(frame);
 
             {
-                guise::begin_panel(frame, line!(), "50%", "100%");
+                guise::Panel::new(line!(), "50%", "100%")
+                    .set_draw_padding(false)
+                    .set_draw_border(false)
+                    .begin(frame);
 
                 for i in 0..3 {
                     let i = i * 3;
@@ -175,7 +186,10 @@ pub fn draw_ui<A: Allocator + Clone>(
             }
 
             {
-                let mut panel_ctrl = guise::begin_panel(frame, line!(), "50%", "100%");
+                let mut panel_ctrl = guise::Panel::new(line!(), "50%", "100%")
+                    .set_draw_padding(false)
+                    .set_draw_border(false)
+                    .begin(frame);
 
                 let size = panel_ctrl.inner_size();
                 let width = size.x;

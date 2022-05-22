@@ -32,6 +32,8 @@ pub struct Panel<'a> {
     height: Size,
 
     layout: Layout,
+    draw_padding: bool,
+    draw_border: bool,
 
     theme: &'a Theme,
 }
@@ -53,6 +55,8 @@ impl<'a> Panel<'a> {
             height,
 
             layout: Layout::Vertical,
+            draw_padding: true,
+            draw_border: true,
 
             theme: &Theme::DEFAULT,
         }
@@ -60,6 +64,18 @@ impl<'a> Panel<'a> {
 
     pub fn set_layout(&mut self, layout: Layout) -> &mut Self {
         self.layout = layout;
+        self
+    }
+
+    // NB: This is a shorthand for setting the padding-width to zero in theme.
+    pub fn set_draw_padding(&mut self, draw_padding: bool) -> &mut Self {
+        self.draw_padding = draw_padding;
+        self
+    }
+
+    // NB: This is a shorthand for setting the border-width to zero in theme.
+    pub fn set_draw_border(&mut self, draw_border: bool) -> &mut Self {
+        self.draw_border = draw_border;
         self
     }
 
@@ -80,8 +96,16 @@ impl<'a> Panel<'a> {
             self.width.resolve(parent_size.x),
             self.height.resolve(parent_size.y),
         ));
-        ctrl.set_padding(self.theme.panel_padding);
-        ctrl.set_border(self.theme.panel_border);
+        ctrl.set_padding(if self.draw_padding {
+            self.theme.panel_padding
+        } else {
+            0.0
+        });
+        ctrl.set_border(if self.draw_border {
+            self.theme.panel_border
+        } else {
+            0.0
+        });
         ctrl.set_margin(0.0);
 
         ctrl.set_draw_self(true);
