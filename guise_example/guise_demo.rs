@@ -48,8 +48,8 @@ pub struct State {
     pub graph_vertex_count_max: usize,
     pub graph_index_count: [usize; GRAPH_LEN],
     pub graph_index_count_max: usize,
-    pub input_text_text_heap: guise::AsciiVec<Global>,
-    pub input_text_text_inline: guise::AsciiArrayVec<64>,
+    pub input_text_heap: guise::AsciiVec<Global>,
+    pub input_text_inline: guise::AsciiArrayVec<64>,
     pub drag_float_value: f32,
     pub drag_float_value_clamped: f32,
     pub drag_int_value: i32,
@@ -66,7 +66,7 @@ pub fn draw_ui<A: Allocator + Clone>(
     let mut s: ArrayString<1024> = ArrayString::new();
 
     {
-        guise::begin_window(frame, line!(), "26%", "1%", "73%", "98%");
+        guise::begin_window(frame, line!(), "41%", "1%", "58%", "98%");
 
         {
             guise::Panel::new(line!(), "100%", "50%")
@@ -323,7 +323,7 @@ pub fn draw_ui<A: Allocator + Clone>(
     }
 
     {
-        let mut window_ctrl = guise::Window::new(line!(), "1%", "1%", "23%", "48%")
+        let mut window_ctrl = guise::Window::new(line!(), "1%", "1%", "39%", "48%")
             .set_layout(guise::Layout::Free)
             .begin(frame);
 
@@ -407,7 +407,7 @@ pub fn draw_ui<A: Allocator + Clone>(
     }
 
     {
-        guise::begin_window(frame, line!(), "1%", "51%", "23%", "48%");
+        guise::begin_window(frame, line!(), "1%", "51%", "39%", "48%");
 
         guise::dropdown(
             frame,
@@ -425,21 +425,31 @@ pub fn draw_ui<A: Allocator + Clone>(
             &mut state.dropdown_selected_option,
         );
 
-        match guise::input_text(frame, line!(), &mut state.input_text_text_heap) {
+        match guise::input_text(
+            frame,
+            line!(),
+            &mut state.input_text_heap,
+            "Heap String",
+        ) {
             (_, guise::InputTextSubmit::None) => (),
             (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
             (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
         }
 
-        match guise::input_text(frame, line!(), &mut state.input_text_text_inline) {
+        match guise::input_text(
+            frame,
+            line!(),
+            &mut state.input_text_inline,
+            "Stack String",
+        ) {
             (_, guise::InputTextSubmit::None) => (),
             (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
             (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
         }
 
         if guise::button(frame, line!(), "Clear") {
-            state.input_text_text_heap.clear();
-            state.input_text_text_inline.clear();
+            state.input_text_heap.clear();
+            state.input_text_inline.clear();
         }
 
         guise::drag_float(

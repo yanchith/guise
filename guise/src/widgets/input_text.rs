@@ -6,6 +6,9 @@ use crate::convert::{cast_u32, cast_usize};
 use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, TextStorage, Wrap};
 use crate::widgets::theme::Theme;
 
+const LABEL_WIDTH_RATIO: f32 = 0.4;
+const LABEL_SPACING: f32 = 5.0;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputTextSubmit {
     None,
@@ -13,17 +16,23 @@ pub enum InputTextSubmit {
     Cancel,
 }
 
-pub fn input_text<T, A>(frame: &mut Frame<A>, id: u32, text: &mut T) -> (bool, InputTextSubmit)
+pub fn input_text<T, A>(
+    frame: &mut Frame<A>,
+    id: u32,
+    text: &mut T,
+    label: &str,
+) -> (bool, InputTextSubmit)
 where
     T: TextStorage,
     A: Allocator + Clone,
 {
-    InputText::new(id, text).show(frame)
+    InputText::new(id, text, label).show(frame)
 }
 
 pub struct InputText<'a, T> {
     id: u32,
     text: &'a mut T,
+    label: &'a str,
     theme: &'a Theme,
 }
 
@@ -31,10 +40,11 @@ impl<'a, T> InputText<'a, T>
 where
     T: TextStorage,
 {
-    pub fn new(id: u32, text: &'a mut T) -> Self {
+    pub fn new(id: u32, text: &'a mut T, label: &'a str) -> Self {
         Self {
             id,
             text,
+            label,
             theme: &Theme::DEFAULT,
         }
     }
@@ -51,20 +61,51 @@ where
             ArrayString::from(frame.received_characters()).unwrap();
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
-        let border = self.theme.input_text_border;
+        let label_width = LABEL_WIDTH_RATIO * width;
+        let inner_width = width - label_width - LABEL_SPACING;
 
-        let mut ctrl = frame.push_ctrl(self.id);
-        ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER);
-        ctrl.set_layout(Layout::Vertical);
-        ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.input_text_height));
-        ctrl.set_padding(0.0);
-        ctrl.set_border(border);
-        ctrl.set_margin(self.theme.input_text_margin);
+        let mut outer_ctrl = frame.push_ctrl(self.id);
+        outer_ctrl.set_flags(CtrlFlags::NONE);
+        outer_ctrl.set_layout(Layout::Horizontal);
+        outer_ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.input_text_height));
+        outer_ctrl.set_padding(0.0);
+        outer_ctrl.set_border(0.0);
+        outer_ctrl.set_margin(self.theme.input_text_margin);
 
-        let hovered = ctrl.hovered();
-        let active = ctrl.active();
+        outer_ctrl.set_draw_self(false);
+        outer_ctrl.draw_text(
+            true,
+            Some(Rect::new(
+                0.0,
+                0.0,
+                label_width,
+                self.theme.input_text_height,
+            )),
+            0.0,
+            self.label,
+            Align::Start,
+            Align::Center,
+            Wrap::Word,
+            self.theme.input_text_text_color,
+        );
 
-        let mut text_cursor = text_cursor(ctrl.state());
+        let mut inner_ctrl = frame.push_ctrl(0);
+        inner_ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER);
+        inner_ctrl.set_layout(Layout::Vertical);
+        inner_ctrl.set_rect(Rect::new(
+            label_width + LABEL_SPACING,
+            0.0,
+            inner_width,
+            self.theme.input_text_height,
+        ));
+        inner_ctrl.set_padding(0.0);
+        inner_ctrl.set_border(self.theme.input_text_border);
+        inner_ctrl.set_margin(0.0);
+
+        let hovered = inner_ctrl.hovered();
+        let active = inner_ctrl.active();
+
+        let mut text_cursor = text_cursor(inner_ctrl.state());
         text_cursor = u32::clamp(text_cursor, 0, cast_u32(self.text.len()));
 
         let (active, changed, submit) =
@@ -127,12 +168,12 @@ where
                         }
 
                         Inputs::KB_ENTER => {
-                            ctrl.set_active(false);
+                            inner_ctrl.set_active(false);
                             (false, false, InputTextSubmit::Submit)
                         }
 
                         Inputs::KB_ESCAPE => {
-                            ctrl.set_active(false);
+                            inner_ctrl.set_active(false);
                             (false, false, InputTextSubmit::Cancel)
                         }
 
@@ -160,16 +201,16 @@ where
                     (true, true, InputTextSubmit::None)
                 }
             } else if hovered && inputs_pressed == Inputs::MB_LEFT {
-                ctrl.set_active(true);
+                inner_ctrl.set_active(true);
                 (true, false, InputTextSubmit::None)
             } else {
                 (active, false, InputTextSubmit::None)
             };
 
-        set_text_cursor(ctrl.state_mut(), text_cursor);
+        set_text_cursor(inner_ctrl.state_mut(), text_cursor);
 
         if active {
-            ctrl.request_want_capture_keyboard();
+            inner_ctrl.request_want_capture_keyboard();
         }
 
         let (text_color, background_color, border_color) = match (hovered, active) {
@@ -190,16 +231,16 @@ where
             ),
         };
 
-        ctrl.set_draw_self(true);
-        ctrl.set_draw_self_border_color(border_color);
-        ctrl.set_draw_self_background_color(background_color);
+        inner_ctrl.set_draw_self(true);
+        inner_ctrl.set_draw_self_border_color(border_color);
+        inner_ctrl.set_draw_self_background_color(background_color);
 
         // TODO(yan): The text cursor should always be on screen. This requires
         // text layout to happen first.
-        ctrl.draw_text(
+        inner_ctrl.draw_text(
             true,
             None,
-            border,
+            self.theme.input_text_border,
             self.text,
             Align::Center,
             Align::Center,
@@ -207,6 +248,7 @@ where
             text_color,
         );
 
+        frame.pop_ctrl();
         frame.pop_ctrl();
 
         (changed, submit)
