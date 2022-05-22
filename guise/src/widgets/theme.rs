@@ -115,6 +115,10 @@ pub struct Theme {
     pub window_background_color_hovered: u32,
     pub window_border: f32,
     pub window_padding: f32,
+
+    pub separator_color: u32,
+    pub separator_height: f32,
+    pub separator_margin: f32,
 }
 
 impl Theme {
@@ -231,5 +235,9 @@ impl Theme {
         window_background_color_hovered: 0x626262d0,
         window_border: 1.0,
         window_padding: 5.0,
+
+        separator_color: 0xffffff50,
+        separator_height: 1.0,
+        separator_margin: 8.0,
     };
 }

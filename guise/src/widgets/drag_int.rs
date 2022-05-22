@@ -75,7 +75,7 @@ impl<'a> DragInt<'a> {
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.drag_int_margin);
         let label_width = LABEL_WIDTH_RATIO * width;
-        let inner_width = width - label_width - LABEL_SPACING;
+        let inner_width = f32::max(0.0, width - label_width - LABEL_SPACING);
 
         let mut outer_ctrl = frame.push_ctrl(self.id);
         outer_ctrl.set_flags(CtrlFlags::NONE);

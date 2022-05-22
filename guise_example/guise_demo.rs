@@ -76,58 +76,48 @@ pub fn draw_ui<A: Allocator + Clone>(
             {
                 guise::begin_panel(frame, line!(), "50%", "100%");
 
-                {
-                    guise::begin_panel(frame, line!(), "100%", "15%");
+                guise::checkbox(
+                    frame,
+                    line!(),
+                    &mut state.poll_platform_events,
+                    "Poll Platform Events",
+                );
 
-                    guise::checkbox(
-                        frame,
-                        line!(),
-                        &mut state.poll_platform_events,
-                        "Poll Platform Events",
-                    );
+                guise::separator(frame, line!());
 
-                    guise::end_panel(frame);
-                }
+                guise::text(
+                    frame,
+                    line!(),
+                    fmt!(
+                        s,
+                        "Button click count {}\nText Input submit count {}\nText Input cancel \
+                         count {}",
+                        state.button_click_count,
+                        state.input_text_submit_count,
+                        state.input_text_cancel_count,
+                    ),
+                );
 
-                {
-                    guise::begin_panel(frame, line!(), "100%", "35%");
-                    guise::text(
-                        frame,
-                        0,
-                        fmt!(
-                            s,
-                            "Button click count {}\nText Input submit count {}\nText Input cancel \
-                             count {}",
-                            state.button_click_count,
-                            state.input_text_submit_count,
-                            state.input_text_cancel_count,
-                        ),
-                    );
-                    guise::end_panel(frame);
-                }
+                guise::separator(frame, line!());
 
-                {
-                    guise::begin_panel(frame, line!(), "100%", "50%");
-                    guise::text(
-                        frame,
-                        0,
-                        fmt!(
-                            s,
-                            "running time: {:.3}s\nframe count:  {}\nframe build time: \
-                             {:.3}/{:.3}s (current/max)\nframe total time: {:.3}s\nframe ctrl \
-                             count: {}\nwant capture keyboard {}\nwant capture mouse {}",
-                            time,
-                            stats.frame_count,
-                            stats.frame_build_duration.as_secs_f32(),
-                            state.graph_frame_build_max,
-                            stats.frame_total_duration.as_secs_f32(),
-                            stats.frame_ctrl_count,
-                            stats.want_capture_keyboard,
-                            stats.want_capture_mouse,
-                        ),
-                    );
-                    guise::end_panel(frame);
-                }
+                guise::text(
+                    frame,
+                    line!(),
+                    fmt!(
+                        s,
+                        "running time: {:.3}s\nframe count:  {}\nframe build time: {:.3}/{:.3}s \
+                         (current/max)\nframe total time: {:.3}s\nframe ctrl count: {}\nwant \
+                         capture keyboard {}\nwant capture mouse {}",
+                        time,
+                        stats.frame_count,
+                        stats.frame_build_duration.as_secs_f32(),
+                        state.graph_frame_build_max,
+                        stats.frame_total_duration.as_secs_f32(),
+                        stats.frame_ctrl_count,
+                        stats.want_capture_keyboard,
+                        stats.want_capture_mouse,
+                    ),
+                );
 
                 guise::end_panel(frame);
             }
@@ -425,23 +415,15 @@ pub fn draw_ui<A: Allocator + Clone>(
             &mut state.dropdown_selected_option,
         );
 
-        match guise::input_text(
-            frame,
-            line!(),
-            &mut state.input_text_heap,
-            "Heap String",
-        ) {
+        guise::separator(frame, line!());
+
+        match guise::input_text(frame, line!(), &mut state.input_text_heap, "Heap String") {
             (_, guise::InputTextSubmit::None) => (),
             (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
             (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
         }
 
-        match guise::input_text(
-            frame,
-            line!(),
-            &mut state.input_text_inline,
-            "Stack String",
-        ) {
+        match guise::input_text(frame, line!(), &mut state.input_text_inline, "Stack String") {
             (_, guise::InputTextSubmit::None) => (),
             (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
             (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
@@ -451,6 +433,8 @@ pub fn draw_ui<A: Allocator + Clone>(
             state.input_text_heap.clear();
             state.input_text_inline.clear();
         }
+
+        guise::separator(frame, line!());
 
         guise::drag_float(
             frame,
