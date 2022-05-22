@@ -63,7 +63,6 @@ pub struct Theme {
     pub input_text_height: f32,
     pub input_text_margin: f32,
     pub input_text_border: f32,
-    pub input_text_padding: f32,
 
     pub drag_float_border_color: u32,
     pub drag_float_border_color_hovered: u32,
@@ -77,7 +76,6 @@ pub struct Theme {
     pub drag_float_height: f32,
     pub drag_float_margin: f32,
     pub drag_float_border: f32,
-    pub drag_float_padding: f32,
 
     pub drag_int_border_color: u32,
     pub drag_int_border_color_hovered: u32,
@@ -91,7 +89,6 @@ pub struct Theme {
     pub drag_int_height: f32,
     pub drag_int_margin: f32,
     pub drag_int_border: f32,
-    pub drag_int_padding: f32,
 
     pub dropdown_border_color: u32,
     pub dropdown_border_color_hovered: u32,
@@ -182,7 +179,6 @@ impl Theme {
         input_text_height: 40.0,
         input_text_margin: 2.0,
         input_text_border: 1.0,
-        input_text_padding: 2.0,
 
         drag_float_border_color: 0xa0a0a050,
         drag_float_border_color_hovered: 0xa0a0a070,
@@ -196,7 +192,6 @@ impl Theme {
         drag_float_height: 40.0,
         drag_float_margin: 2.0,
         drag_float_border: 1.0,
-        drag_float_padding: 2.0,
 
         drag_int_border_color: 0xa0a0a050,
         drag_int_border_color_hovered: 0xa0a0a070,
@@ -210,7 +205,6 @@ impl Theme {
         drag_int_height: 40.0,
         drag_int_margin: 2.0,
         drag_int_border: 1.0,
-        drag_int_padding: 2.0,
 
         dropdown_border_color: 0xa0a0a0ff,
         dropdown_border_color_hovered: 0xb0b0b0ff,

@@ -52,13 +52,12 @@ where
 
         let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
         let border = self.theme.input_text_border;
-        let padding = self.theme.input_text_padding;
 
         let mut ctrl = frame.push_ctrl(self.id);
         ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL | CtrlFlags::CAPTURE_HOVER);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.input_text_height));
-        ctrl.set_padding(padding);
+        ctrl.set_padding(0.0);
         ctrl.set_border(border);
         ctrl.set_margin(self.theme.input_text_margin);
 
@@ -200,9 +199,9 @@ where
         ctrl.draw_text(
             true,
             None,
-            border + padding,
+            border,
             self.text,
-            Align::Start,
+            Align::Center,
             Align::Center,
             Wrap::None,
             text_color,

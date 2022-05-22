@@ -69,7 +69,7 @@ impl<'a> DragInt<'a> {
         ctrl.set_flags(CtrlFlags::CAPTURE_HOVER);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.drag_int_height));
-        ctrl.set_padding(self.theme.drag_int_padding);
+        ctrl.set_padding(0.0);
         ctrl.set_border(self.theme.drag_int_border);
         ctrl.set_margin(self.theme.drag_int_margin);
 
