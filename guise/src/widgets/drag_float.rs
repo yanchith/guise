@@ -19,6 +19,7 @@ pub struct DragFloat<'a> {
     speed: f32,
     min: f32,
     max: f32,
+    display_precision: u16,
 
     theme: &'a Theme,
 }
@@ -32,6 +33,7 @@ impl<'a> DragFloat<'a> {
             speed: 1.0,
             min: f32::MIN,
             max: f32::MAX,
+            display_precision: 3,
 
             theme: &Theme::DEFAULT,
         }
@@ -49,6 +51,11 @@ impl<'a> DragFloat<'a> {
 
     pub fn set_max(&mut self, max: f32) -> &mut Self {
         self.max = max;
+        self
+    }
+
+    pub fn set_display_precision(&mut self, display_precision: u16) -> &mut Self {
+        self.display_precision = display_precision;
         self
     }
 
@@ -131,7 +138,7 @@ impl<'a> DragFloat<'a> {
         ctrl.set_draw_self_background_color(background_color);
 
         let mut text: ArrayString<256> = ArrayString::new();
-        let _ = write!(text, "{:.3}", *self.value);
+        let _ = write!(text, "{:.1$}", *self.value, usize::from(self.display_precision));
         ctrl.draw_text(
             true,
             None,

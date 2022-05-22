@@ -444,9 +444,10 @@ pub fn draw_ui<A: Allocator + Clone>(
 
         guise::drag_float(frame, line!(), &mut state.drag_float_value);
         guise::DragFloat::new(line!(), &mut state.drag_float_value_clamped)
-            .set_speed(0.001)
+            .set_speed(0.00001)
             .set_min(0.0)
             .set_max(1.0)
+            .set_display_precision(8)
             .show(frame);
 
         guise::drag_int(frame, line!(), &mut state.drag_int_value);
