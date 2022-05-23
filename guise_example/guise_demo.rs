@@ -134,6 +134,7 @@ pub fn draw_ui<A: Allocator + Clone>(
 
             {
                 guise::Panel::new(line!(), "50%", "100%")
+                    .set_resize_height_to_fit_content(true)
                     .set_draw_padding(false)
                     .set_draw_border(false)
                     .begin(frame);
