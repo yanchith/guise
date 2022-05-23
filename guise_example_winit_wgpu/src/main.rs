@@ -111,6 +111,7 @@ fn main() {
         drag_float_value_clamped: 0.0,
         drag_float2_value: [0.0; 2],
         drag_float3_value: [0.0; 3],
+        drag_float4_value: [0.0; 4],
         drag_int_value: 1,
         drag_int_value_clamped: 0,
         dropdown_selected_option: None,

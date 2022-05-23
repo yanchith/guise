@@ -54,6 +54,7 @@ pub struct State {
     pub drag_float_value_clamped: f32,
     pub drag_float2_value: [f32; 2],
     pub drag_float3_value: [f32; 3],
+    pub drag_float4_value: [f32; 4],
     pub drag_int_value: i32,
     pub drag_int_value_clamped: i32,
     pub dropdown_selected_option: Option<usize>,
@@ -472,6 +473,7 @@ pub fn draw_ui<A: Allocator + Clone>(
 
         guise::drag_float2(frame, line!(), &mut state.drag_float2_value, "Vec2");
         guise::drag_float3(frame, line!(), &mut state.drag_float3_value, "Vec3");
+        guise::drag_float4(frame, line!(), &mut state.drag_float4_value, "Vec4");
 
         guise::drag_int(
             frame,

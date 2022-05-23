@@ -8,7 +8,7 @@ use crate::widgets::theme::Theme;
 
 // TODO(yan): Do DragInt2, DragInt3, DragInt4.
 
-const LABEL_WIDTH_RATIO: f32 = 0.4;
+const LABEL_WIDTH_RATIO: f32 = 0.35;
 const LABEL_SPACING: f32 = 5.0;
 
 pub fn drag_int<A: Allocator + Clone>(

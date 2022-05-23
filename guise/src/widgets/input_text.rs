@@ -6,7 +6,7 @@ use crate::convert::{cast_u32, cast_usize};
 use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, TextStorage, Wrap};
 use crate::widgets::theme::Theme;
 
-const LABEL_WIDTH_RATIO: f32 = 0.4;
+const LABEL_WIDTH_RATIO: f32 = 0.35;
 const LABEL_SPACING: f32 = 5.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
