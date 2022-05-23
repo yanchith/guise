@@ -52,6 +52,7 @@ pub struct State {
     pub input_text_inline: guise::AsciiArrayVec<64>,
     pub drag_float_value: f32,
     pub drag_float_value_clamped: f32,
+    pub drag_float2_value: [f32; 2],
     pub drag_int_value: i32,
     pub drag_int_value_clamped: i32,
     pub dropdown_selected_option: Option<usize>,
@@ -456,6 +457,7 @@ pub fn draw_ui<A: Allocator + Clone>(
             &mut state.drag_float_value,
             "Fast Float (unclamped)",
         );
+
         guise::DragFloat::new(
             line!(),
             &mut state.drag_float_value_clamped,
@@ -467,12 +469,15 @@ pub fn draw_ui<A: Allocator + Clone>(
         .set_display_precision(6)
         .show(frame);
 
+        guise::drag_float2(frame, line!(), &mut state.drag_float2_value, "Vec2");
+
         guise::drag_int(
             frame,
             line!(),
             &mut state.drag_int_value,
             "Fast Int (unclamped)",
         );
+
         guise::DragInt::new(
             line!(),
             &mut state.drag_int_value_clamped,

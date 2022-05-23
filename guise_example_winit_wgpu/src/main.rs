@@ -109,6 +109,7 @@ fn main() {
         input_text_inline: guise::AsciiArrayVec::new(),
         drag_float_value: 1.0,
         drag_float_value_clamped: 0.0,
+        drag_float2_value: [0.0; 2],
         drag_int_value: 1,
         drag_int_value_clamped: 0,
         dropdown_selected_option: None,

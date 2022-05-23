@@ -535,7 +535,6 @@ impl<A: Allocator + Clone> Ui<A> {
         );
 
         if let Some(hovered_ctrl_idx) = self.hovered_ctrl_idx {
-
             let mut ctrl_idx = hovered_ctrl_idx;
             let mut ctrl = &self.tree[hovered_ctrl_idx];
 
@@ -705,13 +704,22 @@ impl<A: Allocator + Clone> Ui<A> {
     }
 
     pub fn end_frame(&mut self) {
+        assert!(
+            self.build_parent_idx == Some(ROOT_IDX),
+            "Is there a pop_ctrl for every push_ctrl?",
+        );
+        assert!(
+            self.overlay_build_parent_idx == Some(OVERLAY_ROOT_IDX),
+            "Is there a pop_ctrl for every push_ctrl?",
+        );
+
         // Perform cleanup on the roots analogous to the cleanup that happens in
         // pop_ctrl for other (not root) controls.
         {
+            // NB: build_parent_idx and overlay_build_parent_idx assertions
+            // already happen above.
             debug_assert!(self.tree[ROOT_IDX].sibling_idx == None);
             debug_assert!(self.tree[OVERLAY_ROOT_IDX].sibling_idx == None);
-            debug_assert!(self.build_parent_idx == Some(ROOT_IDX));
-            debug_assert!(self.overlay_build_parent_idx == Some(OVERLAY_ROOT_IDX));
 
             if let Some(build_sibling_idx) = self.build_sibling_idx {
                 self.tree[build_sibling_idx].sibling_idx = None;
@@ -829,6 +837,12 @@ impl<A: Allocator + Clone> Ui<A> {
         layout(&mut self.tree, OVERLAY_ROOT_IDX, Vec2::ZERO);
 
         fn layout(tree: &mut [CtrlNode], ctrl_idx: usize, ctrl_absolute_position_base: Vec2) {
+            // TODO(yan): For horizontal and vertical layouts we advance the
+            // position by the width and height of the rect of the current
+            // control, but what if that control has its position offset by the
+            // X or Y of the rect? (e.g. if X=100, should we advance the
+            // horizontal cursor by an additional 100 pixels?)
+
             let ctrl = &tree[ctrl_idx];
             let ctrl_flags = ctrl.flags;
             let ctrl_layout = ctrl.layout;
