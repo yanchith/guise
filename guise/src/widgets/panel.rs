@@ -31,6 +31,7 @@ pub struct Panel<'a> {
     width: Size,
     height: Size,
 
+    resize_height_to_fit_content: bool,
     layout: Layout,
     draw_padding: bool,
     draw_border: bool,
@@ -54,12 +55,18 @@ impl<'a> Panel<'a> {
             width,
             height,
 
+            resize_height_to_fit_content: false,
             layout: Layout::Vertical,
             draw_padding: true,
             draw_border: true,
 
             theme: &Theme::DEFAULT,
         }
+    }
+
+    pub fn set_resize_height_to_fit_content(&mut self, resize: bool) -> &mut Self {
+        self.resize_height_to_fit_content = resize;
+        self
     }
 
     pub fn set_layout(&mut self, layout: Layout) -> &mut Self {
@@ -86,9 +93,14 @@ impl<'a> Panel<'a> {
 
     pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
         let parent_size = frame.ctrl_inner_size();
+        let flags = if self.resize_height_to_fit_content {
+            CtrlFlags::CAPTURE_SCROLL | CtrlFlags::RESIZE_TO_FIT_VERTICAL
+        } else {
+            CtrlFlags::CAPTURE_SCROLL
+        };
 
         let mut ctrl = frame.push_ctrl(self.id);
-        ctrl.set_flags(CtrlFlags::CAPTURE_SCROLL);
+        ctrl.set_flags(flags);
         ctrl.set_layout(self.layout);
         ctrl.set_rect(Rect::new(
             0.0,

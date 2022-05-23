@@ -151,7 +151,7 @@ impl CtrlFlags {
     pub const CAPTURE_ACTIVE: Self = Self(0x04);
 
     #[allow(dead_code)]
-    const RESERVED: Self = Self(0x08);
+    const __RESERVED: Self = Self(0x08);
 
     /// Whether to attempt shrinking the control's rect width to the width of
     /// its inline contents (text or geometry) before layout and render. This
@@ -189,9 +189,6 @@ impl CtrlFlags {
     /// for rendering. Any interactivity may experience a one frame lag,
     /// however, because building the UI happens before layout is computed, and
     /// only has layout data from last frame, if any.
-    ///
-    /// WARNING: This currently doesn't work well, or at all. Some things are
-    /// off in layout computation and I moved on to other things for now.
     pub const RESIZE_TO_FIT_HORIZONTAL: Self = Self(0x40);
 
     /// Whether to resize the control's rect height to the height of its contents,
@@ -204,9 +201,6 @@ impl CtrlFlags {
     /// for rendering. Any interactivity may experience a one frame lag,
     /// however, because building the UI happens before layout is computed, and
     /// only has layout data from last frame, if any.
-    ///
-    /// WARNING: This currently doesn't work well, or at all. Some things are
-    /// off in layout computation and I moved on to other things for now.
     pub const RESIZE_TO_FIT_VERTICAL: Self = Self(0x80);
 
     pub const NONE: Self = Self(0);
@@ -864,7 +858,6 @@ impl<A: Allocator + Clone> Ui<A> {
                     Layout::Vertical => Vec2::new(0.0, child_margin_rect.height),
                 };
 
-                let mut min_point = child_margin_rect.min_point();
                 let mut max_point = child_margin_rect.max_point();
 
                 while let Some(sibling_idx) = child.sibling_idx {
@@ -879,7 +872,6 @@ impl<A: Allocator + Clone> Ui<A> {
 
                     match ctrl_layout {
                         Layout::Free => {
-                            min_point = min_point.min(child_margin_rect.min_point());
                             max_point = max_point.max(child_margin_rect.max_point());
                         }
                         Layout::Horizontal => {
@@ -896,19 +888,18 @@ impl<A: Allocator + Clone> Ui<A> {
                 }
 
                 if let Some(inline_content_rect) = ctrl_inline_content_rect {
-                    min_point = min_point.min(inline_content_rect.min_point());
                     max_point = max_point.max(inline_content_rect.max_point());
                 }
 
                 let ctrl_mut = &mut tree[ctrl_idx];
                 ctrl_mut.layout_cache_absolute_position = ctrl_absolute_position;
-                ctrl_mut.layout_cache_content_size = max_point - min_point;
+                ctrl_mut.layout_cache_content_size = max_point;
             } else {
                 let ctrl_mut = &mut tree[ctrl_idx];
 
                 ctrl_mut.layout_cache_absolute_position = ctrl_absolute_position;
                 if let Some(inline_content_rect) = ctrl_inline_content_rect {
-                    ctrl_mut.layout_cache_content_size = inline_content_rect.size();
+                    ctrl_mut.layout_cache_content_size = inline_content_rect.max_point();
                 } else {
                     ctrl_mut.layout_cache_content_size = Vec2::ZERO;
                 }

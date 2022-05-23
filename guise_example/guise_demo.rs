@@ -146,7 +146,10 @@ pub fn draw_ui<A: Allocator + Clone>(
                     state.button_click_count += 1;
                 }
 
-                if guise::button(frame, 1, "A button with multiline text.\n And a footnote.") {
+                if guise::Button::new(1, "A button with multiline text.\n And a footnote.")
+                    .set_tooltip(TEXT)
+                    .show(frame)
+                {
                     state.button_click_count += 1;
                 }
 

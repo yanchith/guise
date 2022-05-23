@@ -48,12 +48,15 @@ impl<'a> TooltipText<'a> {
         // overflows - by the value of its border (and padding, if we had set
         // it), but because Ctrl::draw_text does its own aligning and insetting,
         // this is never visible.
-        ctrl.set_flags(CtrlFlags::ALL_SHRINK_TO_FIT_INLINE);
+        ctrl.set_flags(CtrlFlags::ALL_RESIZE_TO_FIT);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(
             cursor_position.x,
             cursor_position.y,
-            parent_size.x,
+            // NB: Set to parent size so that the text layout can happen with
+            // realistic clipping. This rect is however resized to fit the text
+            // during the control layout phase.
+            f32::max(0.0, parent_size.x - cursor_position.x),
             parent_size.y,
         ));
         // NB: Padding is not set, because there's no child controls, and the
