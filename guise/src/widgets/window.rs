@@ -282,11 +282,14 @@ impl<'a> Window<'a> {
         ctrl.set_draw_self_background_color(background_color);
 
         if self.resizable {
+            let offset_x = ctrl.scroll_offset_x();
+            let offset_y = ctrl.scroll_offset_y();
+
             ctrl.draw_rect(
                 false,
                 Rect::new(
-                    width - resize_handle_dimension,
-                    height - resize_handle_dimension,
+                    width - resize_handle_dimension + offset_x,
+                    height - resize_handle_dimension + offset_y,
                     resize_handle_dimension,
                     resize_handle_dimension,
                 ),

@@ -1630,6 +1630,14 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         rect.size()
     }
 
+    pub fn scroll_offset_x(&self) -> f32 {
+        self.ui.tree[self.idx].scroll_offset.x
+    }
+
+    pub fn scroll_offset_y(&self) -> f32 {
+        self.ui.tree[self.idx].scroll_offset.y
+    }
+
     pub fn request_want_capture_keyboard(&mut self) {
         self.ui.want_capture_keyboard = true;
     }
