@@ -35,6 +35,7 @@ impl<'a> Checkbox<'a> {
     }
 
     pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
+        let texture_id = frame.font_atlas_texture_id();
         let parent_size = frame.ctrl_inner_size();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
         let lmb_released = frame.inputs_released() == Inputs::MB_LEFT;
@@ -100,7 +101,7 @@ impl<'a> Checkbox<'a> {
             ),
             Rect::ZERO,
             handle_color,
-            0,
+            texture_id,
         );
 
         if *self.value {
@@ -114,7 +115,7 @@ impl<'a> Checkbox<'a> {
                 ),
                 Rect::ZERO,
                 0xffffffff,
-                0,
+                texture_id,
             );
         }
 

@@ -434,12 +434,12 @@ impl<A: Allocator + Clone> Ui<A> {
         }
     }
 
-    pub fn set_window_size(&mut self, window_width: f32, window_height: f32) {
-        self.window_size = Vec2::new(window_width, window_height);
-    }
-
     pub fn set_font_atlas_texture_id(&mut self, font_atlas_texture_id: u64) {
         self.font_atlas_texture_id = font_atlas_texture_id;
+    }
+
+    pub fn set_window_size(&mut self, window_width: f32, window_height: f32) {
+        self.window_size = Vec2::new(window_width, window_height);
     }
 
     pub fn scroll(&mut self, delta_x: f32, delta_y: f32) {
@@ -1448,6 +1448,10 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
         );
 
         self.ui.building_overlay = false;
+    }
+
+    pub fn font_atlas_texture_id(&self) -> u64 {
+        self.ui.font_atlas_texture_id
     }
 
     pub fn window_size(&self) -> Vec2 {

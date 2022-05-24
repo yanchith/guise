@@ -68,6 +68,7 @@ pub fn draw_ui<A: Allocator + Clone>(
     stats: &Stats,
     state: &mut State,
 ) {
+    let texture_id = frame.font_atlas_texture_id();
     let time = stats.running_duration.as_secs_f32();
     let mut s: ArrayString<1024> = ArrayString::new();
 
@@ -251,7 +252,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                         } else {
                             0xa4faa855
                         },
-                        0,
+                        texture_id,
                     );
 
                     let graph_command_count_max = if state.graph_command_count_max == 0 {
@@ -275,7 +276,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                         } else {
                             0xfbd16055
                         },
-                        0,
+                        texture_id,
                     );
 
                     let graph_vertex_count_max = if state.graph_vertex_count_max == 0 {
@@ -299,7 +300,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                         } else {
                             0x29a0b155
                         },
-                        0,
+                        texture_id,
                     );
 
                     let graph_index_count_max = if state.graph_index_count_max == 0 {
@@ -323,7 +324,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                         } else {
                             0xf9501155
                         },
-                        0,
+                        texture_id,
                     );
                 }
 
@@ -347,7 +348,7 @@ pub fn draw_ui<A: Allocator + Clone>(
             guise::Rect::new(0.0, 0.0, inner_size.x, inner_size.y),
             guise::Rect::ONE,
             0xffffffff,
-            0,
+            texture_id,
         );
 
         {

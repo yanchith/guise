@@ -115,6 +115,7 @@ impl<'a> Window<'a> {
     }
 
     pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
+        let texture_id = frame.font_atlas_texture_id();
         let parent_size = frame.ctrl_inner_size();
         let cursor_position = frame.cursor_position();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
@@ -295,7 +296,7 @@ impl<'a> Window<'a> {
                 ),
                 Rect::ZERO,
                 resize_handle_color,
-                0,
+                texture_id,
             );
         }
 
