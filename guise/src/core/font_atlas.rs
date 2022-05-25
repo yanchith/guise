@@ -361,10 +361,15 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
                     advance_width: unscaled_metrics.advance_width,
 
-                    width: unscaled_metrics.bounds.width,
-                    height: unscaled_metrics.bounds.height,
-                    xmin: unscaled_metrics.bounds.xmin,
-                    ymin: unscaled_metrics.bounds.ymin,
+                    // NB: width, height, xmin and ymin are in whole pixel
+                    // units, and we use that, because they represent positions
+                    // in the already rasterized image. Subpixel values are
+                    // available in the OutlineBounds struct, but using them
+                    // gives worse visual results (as expected?).
+                    width: unscaled_metrics.width as f32,
+                    height: unscaled_metrics.height as f32,
+                    xmin: unscaled_metrics.xmin as f32,
+                    ymin: unscaled_metrics.ymin as f32,
                 });
 
                 cell_index += 1;

@@ -1686,9 +1686,17 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         assert!(inset_amount >= 0.0);
 
         // TODO(yan): This has layout issues (characters not being aligned
-        // vertically to the baseline on Roboto and IBM Plex Mono fonts, but not
-        // on Proggy Clean). Possibly some ascent stuff. Or we both scaled and
-        // unscaled xmin/ymin.
+        // vertically to the baseline) on Roboto, IBM Plex Mono, and Liberation
+        // Mono fonts, but not on Proggy Clean. Pixel peeping in RenderDoc
+        // showed a consistent 1px or sometimes 2px error in some characters,
+        // e.g. for 'r' and 'i' in Liberation Mono, 'i' is rendered one pixel
+        // higher than expected (or 'r' is rendered one pixel lower). Weirdly,
+        // they have the same ymin (zero) in metrics returned by fontdue, even
+        // though they are visibly offset in the rasterized atlas. Could this be
+        // an error in fontdue - either in metrics, or rasterization?
+
+        // TODO(yan): Do we need to render fonts snapped to pixels, or do we
+        // just use bilinear blending to smooth them out?
 
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let next_draw_primitive_idx = self.ui.draw_primitives.len();
