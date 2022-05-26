@@ -25,16 +25,32 @@ impl Vec2 {
         self.x * self.x + self.y * self.y
     }
 
-    pub fn min(&self, other: Vec2) -> Vec2 {
-        Vec2::new(self.x.min(other.x), self.y.min(other.y))
+    pub fn min(&self, other: Vec2) -> Self {
+        Self {
+            x: self.x.min(other.x),
+            y: self.y.min(other.y),
+        }
     }
 
-    pub fn max(&self, other: Vec2) -> Vec2 {
-        Vec2::new(self.x.max(other.x), self.y.max(other.y))
+    pub fn max(&self, other: Vec2) -> Self {
+        Self {
+            x: self.x.max(other.x),
+            y: self.y.max(other.y),
+        }
     }
 
-    pub fn clamp(&self, min: Vec2, max: Vec2) -> Vec2 {
-        Vec2::new(self.x.clamp(min.x, max.x), self.y.clamp(min.y, max.y))
+    pub fn clamp(&self, min: Vec2, max: Vec2) -> Self {
+        Self {
+            x: self.x.clamp(min.x, max.x),
+            y: self.y.clamp(min.y, max.y),
+        }
+    }
+
+    pub fn round(&self) -> Self {
+        Self {
+            x: libm::roundf(self.x),
+            y: libm::roundf(self.y),
+        }
     }
 }
 
@@ -296,6 +312,15 @@ impl Rect {
             self.clamp_point(rect.min_point()),
             self.clamp_point(rect.max_point()),
         )
+    }
+
+    pub fn round(&self) -> Self {
+        Self {
+            x: libm::roundf(self.x),
+            y: libm::roundf(self.y),
+            width: libm::roundf(self.width),
+            height: libm::roundf(self.height),
+        }
     }
 
     pub fn is_empty(&self) -> bool {
