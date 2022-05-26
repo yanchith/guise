@@ -491,7 +491,6 @@ impl<A: Allocator + Clone> Ui<A> {
     }
 
     pub fn begin_frame(&mut self) -> Frame<'_, A> {
-        // NB: Clear inputs from GUI to platform to.
         self.draw_primitives.clear();
         self.draw_list.clear();
         self.want_capture_keyboard = false;
