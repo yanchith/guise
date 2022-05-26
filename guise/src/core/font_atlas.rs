@@ -182,10 +182,11 @@ pub struct GlyphInfo {
     pub grid_x: u16,
     pub grid_y: u16,
 
-    // Glyph advance with in logical pixels.
+    // Glyph advance with in logical pixels. Possibly subpixel value.
     pub advance_width: f32,
 
-    // Glyph width and height, xmin and ymin in logical pixels.
+    // Glyph width and height, xmin and ymin in logical pixels. These already
+    // represent floor/ceil bounding box around the subpixel values.
     pub width: f32,
     pub height: f32,
     pub xmin: f32,
