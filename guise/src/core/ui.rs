@@ -126,6 +126,7 @@ enum DrawPrimitive {
         texture_rect: Rect,
         texture_id: u64,
         color: u32,
+        round_size_for_scale_factor: bool,
     },
     // TODO(yan): Circles, Rounded arcs, whatever..
 }
@@ -1096,10 +1097,15 @@ impl<A: Allocator + Clone> Ui<A> {
                         texture_rect,
                         texture_id,
                         color,
+                        round_size_for_scale_factor,
                     } => {
                         let rect = *rect + ctrl_rect_absolute.min_point() - ctrl.scroll_offset;
                         draw_list.draw_rect(
-                            rect.round_size_for_scale_factor(window_scale_factor),
+                            if *round_size_for_scale_factor {
+                                rect.round_size_for_scale_factor(window_scale_factor)
+                            } else {
+                                rect
+                            },
                             *texture_rect,
                             *color,
                             ctrl_scissor_rect,
@@ -1681,6 +1687,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             texture_rect,
             texture_id,
             color,
+            round_size_for_scale_factor: true,
         });
 
         parent.draw_range.end += 1;
@@ -1987,6 +1994,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                     texture_rect,
                     texture_id: self.ui.font_atlas_texture_id,
                     color,
+                    round_size_for_scale_factor: false,
                 });
 
                 parent.draw_range.end += 1;
