@@ -276,10 +276,10 @@ impl Rect {
     pub fn inset(&self, amount: f32) -> Self {
         assert!(amount >= 0.0);
 
-        let x = f32::clamp(self.x + amount, self.x, self.max_x());
-        let y = f32::clamp(self.y + amount, self.y, self.max_y());
-        let width = f32::clamp(self.width - 2.0 * amount, 0.0, self.width);
-        let height = f32::clamp(self.height - 2.0 * amount, 0.0, self.height);
+        let x = f32::min(self.max_x(), self.x + amount);
+        let y = f32::min(self.max_y(), self.y + amount);
+        let width = f32::max(0.0, self.width - 2.0 * amount);
+        let height = f32::max(0.0, self.height - 2.0 * amount);
 
         Self::new(x, y, width, height)
     }
