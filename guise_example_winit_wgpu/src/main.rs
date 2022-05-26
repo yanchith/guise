@@ -57,11 +57,13 @@ fn main() {
     });
 
     let mut ui = {
-        let logical_size = window.inner_size().to_logical(window.scale_factor());
+        let scale_factor = window.scale_factor();
+        let logical_size = window.inner_size().to_logical(scale_factor);
 
         guise::Ui::new_in(
             logical_size.width,
             logical_size.height,
+            scale_factor as f32,
             guise::FONT_IBM_PLEX_MONO,
             // guise::FONT_IBM_PLEX_SANS_JP,
             // guise::FONT_PROGGY_CLEAN,
@@ -72,7 +74,7 @@ fn main() {
             // TODO(yan): If we increase the scale factor to something way above
             // what the monitor has, like 4, we see increase in text
             // sharpness. Why? Is it the missing subpixel rasterization?
-            window.scale_factor() as f32,
+            scale_factor as f32,
             std::alloc::Global,
         )
     };
@@ -161,6 +163,9 @@ fn main() {
                         window_height = physical_size.height;
                         window_size_stale = true;
                     }
+                }
+                winit::event::WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                    ui.set_window_scale_factor(scale_factor as f32);
                 }
                 winit::event::WindowEvent::CloseRequested => {
                     *control_flow = winit::event_loop::ControlFlow::Exit;

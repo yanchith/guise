@@ -323,6 +323,25 @@ impl Rect {
         }
     }
 
+    /// Modifies size of this rect such that it will be round after multiplying
+    /// with the provided scale factor.
+    pub fn round_size_for_scale_factor(&self, scale_factor: f32) -> Self {
+        // This is a hack to prevent rendering artifacts on setups with
+        // noninteger window scale factors, e.g. if a button has a 1px border,
+        // this is still a 1px border with scale factor 1, it is a 2px border
+        // with scale factor 2, and is sometimes 1px and *sometimes* 2px border
+        // with scale factor 1.5, depending on the current transform. Hardware
+        // AA (multisampling) makes the artifact goes away, but we don't want to
+        // force that in our backends.
+
+        Self {
+            x: self.x,
+            y: self.y,
+            width: libm::roundf(self.width * scale_factor) / scale_factor,
+            height: libm::roundf(self.height * scale_factor) / scale_factor,
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.width == 0.0 || self.height == 0.0
     }

@@ -313,6 +313,7 @@ pub struct Ui<A: Allocator + Clone> {
     current_frame: u32,
 
     window_size: Vec2,
+    window_scale_factor: f32,
     scroll_delta: Vec2,
     cursor_position: Vec2,
     inputs_pressed: Inputs,
@@ -336,6 +337,7 @@ impl<A: Allocator + Clone> Ui<A> {
     pub fn new_in(
         window_width: f32,
         window_height: f32,
+        window_scale_factor: f32,
         font_bytes: &[u8],
         font_unicode_range_flags: UnicodeRangeFlags,
         font_size: f32,
@@ -419,6 +421,7 @@ impl<A: Allocator + Clone> Ui<A> {
             current_frame: 0,
 
             window_size,
+            window_scale_factor,
             scroll_delta: Vec2::ZERO,
             cursor_position: Vec2::ZERO,
             inputs_pressed: Inputs::empty(),
@@ -440,6 +443,10 @@ impl<A: Allocator + Clone> Ui<A> {
 
     pub fn set_window_size(&mut self, window_width: f32, window_height: f32) {
         self.window_size = Vec2::new(window_width, window_height);
+    }
+
+    pub fn set_window_scale_factor(&mut self, window_scale_factor: f32) {
+        self.window_scale_factor = window_scale_factor;
     }
 
     pub fn scroll(&mut self, delta_x: f32, delta_y: f32) {
@@ -938,6 +945,7 @@ impl<A: Allocator + Clone> Ui<A> {
             self.font_atlas_texture_id,
             &mut self.draw_list,
             &self.allocator,
+            self.window_scale_factor,
         );
         render(
             &self.tree,
@@ -947,6 +955,7 @@ impl<A: Allocator + Clone> Ui<A> {
             self.font_atlas_texture_id,
             &mut self.draw_list,
             &self.allocator,
+            self.window_scale_factor,
         );
 
         // TODO(yan): @Memory If the allocator is a bump allocator, we
@@ -959,6 +968,7 @@ impl<A: Allocator + Clone> Ui<A> {
             font_atlas_texture_id: u64,
             draw_list: &mut DrawList<A>,
             temp_allocator: &A,
+            window_scale_factor: f32,
         ) {
             let ctrl = &tree[ctrl_idx];
             let ctrl_rect_absolute = Rect::new(
@@ -987,6 +997,16 @@ impl<A: Allocator + Clone> Ui<A> {
                 let ctrl_padding_rect_absolute = ctrl_rect_absolute.inset(ctrl.border);
 
                 if !ctrl_rect_absolute.is_empty() && !ctrl_padding_rect_absolute.is_empty() {
+                    // TODO(yan): The borders appear jittery on noninteger dpi
+                    // scale factors (at least on 1.5). This stops happening, if
+                    // the OS switches to an integer scale factor, such as 1 or
+                    // 2, or with hardware anti-aliasing. We currently cheat
+                    // this with Rect::round_size_for_scale_factor, but do we
+                    // actually want to think with physical pixels internally,
+                    // and only expose logical pixels on the surface?
+                    // Alternatively, do we want to think in physical pixels in
+                    // line drawing (like here), but not elsewhere?
+
                     // NB: f32::max is used in substractions here because fp
                     // precision commonly caused the result to be below 0, which
                     // is a big no-no for Rect::new.
@@ -1020,7 +1040,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
                     if !left.is_empty() {
                         draw_list.draw_rect(
-                            left,
+                            left.round_size_for_scale_factor(window_scale_factor),
                             Rect::ZERO,
                             border_color,
                             parent_ctrl_scissor_rect,
@@ -1030,7 +1050,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
                     if !top.is_empty() {
                         draw_list.draw_rect(
-                            top,
+                            top.round_size_for_scale_factor(window_scale_factor),
                             Rect::ZERO,
                             border_color,
                             parent_ctrl_scissor_rect,
@@ -1040,7 +1060,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
                     if !right.is_empty() {
                         draw_list.draw_rect(
-                            right,
+                            right.round_size_for_scale_factor(window_scale_factor),
                             Rect::ZERO,
                             border_color,
                             parent_ctrl_scissor_rect,
@@ -1050,7 +1070,7 @@ impl<A: Allocator + Clone> Ui<A> {
 
                     if !bottom.is_empty() {
                         draw_list.draw_rect(
-                            bottom,
+                            bottom.round_size_for_scale_factor(window_scale_factor),
                             Rect::ZERO,
                             border_color,
                             parent_ctrl_scissor_rect,
@@ -1060,7 +1080,7 @@ impl<A: Allocator + Clone> Ui<A> {
                 }
 
                 draw_list.draw_rect(
-                    ctrl_padding_rect_absolute,
+                    ctrl_padding_rect_absolute.round_size_for_scale_factor(window_scale_factor),
                     Rect::ZERO,
                     background_color,
                     parent_ctrl_scissor_rect,
@@ -1079,7 +1099,7 @@ impl<A: Allocator + Clone> Ui<A> {
                     } => {
                         let rect = *rect + ctrl_rect_absolute.min_point() - ctrl.scroll_offset;
                         draw_list.draw_rect(
-                            rect,
+                            rect.round_size_for_scale_factor(window_scale_factor),
                             *texture_rect,
                             *color,
                             ctrl_scissor_rect,
@@ -1118,6 +1138,7 @@ impl<A: Allocator + Clone> Ui<A> {
                         font_atlas_texture_id,
                         draw_list,
                         temp_allocator,
+                        window_scale_factor,
                     );
                 }
             } else {
@@ -1133,6 +1154,7 @@ impl<A: Allocator + Clone> Ui<A> {
                         font_atlas_texture_id,
                         draw_list,
                         temp_allocator,
+                        window_scale_factor,
                     );
 
                     let mut child = &tree[child_idx];
@@ -1147,6 +1169,7 @@ impl<A: Allocator + Clone> Ui<A> {
                             font_atlas_texture_id,
                             draw_list,
                             temp_allocator,
+                            window_scale_factor,
                         );
                     }
                 }
