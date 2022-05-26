@@ -59,7 +59,7 @@ impl<'a> Button<'a> {
             )
         } else {
             (
-                f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin),
+                f32::max(0.0, parent_size.x - 2.0 * self.theme.button_margin),
                 self.theme.button_height,
                 self.theme.button_border,
                 self.theme.button_margin,
