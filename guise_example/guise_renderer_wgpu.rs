@@ -199,8 +199,8 @@ impl Renderer {
             lod_min_clamp: -100.0,
             lod_max_clamp: 100.0,
             compare: None,
-            // Nonexhaustive
-            ..wgpu::SamplerDescriptor::default()
+            anisotropy_clamp: None,
+            border_color: None,
         });
 
         Self {
@@ -373,10 +373,11 @@ impl Renderer {
 
         let mut consumed_index_count: u32 = 0;
         for command in commands {
-            let x = (viewport_scale * command.scissor_rect.x).floor() as u32;
-            let y = (viewport_scale * command.scissor_rect.y).floor() as u32;
-            let w = (viewport_scale * command.scissor_rect.width).round() as u32;
-            let h = (viewport_scale * command.scissor_rect.height).round() as u32;
+            let x = f32::floor(viewport_scale * command.scissor_rect.x) as u32;
+            let y = f32::floor(viewport_scale * command.scissor_rect.y) as u32;
+            let w = f32::round(viewport_scale * command.scissor_rect.width) as u32;
+            let h = f32::round(viewport_scale * command.scissor_rect.height) as u32;
+
             if w == 0 || h == 0 || x + w > vw || y + h > vh {
                 log::error!("Scissor rect ({x} {y} {w} {h}) invalid");
                 continue;
