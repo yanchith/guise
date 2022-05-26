@@ -2,6 +2,12 @@
 // horizontal and vertical, or even per rect side, but only do that if it is
 // actually useful as it otherwise takes a lot of space in the Ctrl struct.
 
+// TODO(yan): Consider all pixel values being u16, and expanded into f32 in the
+// last possible moment. In most cases it does not make sense to define
+// something as 1.5 pixels, so dimensions should likely always be
+// whole-pixel. On the other hand, positions should likely still be real
+// numbers.
+
 pub struct Theme {
     pub button_border_color: u32,
     pub button_border_color_hovered: u32,
