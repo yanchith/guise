@@ -987,36 +987,35 @@ impl<A: Allocator + Clone> Ui<A> {
                 let ctrl_padding_rect_absolute = ctrl_rect_absolute.inset(ctrl.border);
 
                 if !ctrl_rect_absolute.is_empty() && !ctrl_padding_rect_absolute.is_empty() {
-                    // Note that `.max(0.0)` is used in
-                    // substractions here because fp precision
-                    // commonly caused the result to be below 0,
-                    // which is a big no-no for Rect::new.
+                    // NB: f32::max is used in substractions here because fp
+                    // precision commonly caused the result to be below 0, which
+                    // is a big no-no for Rect::new.
 
                     let outer = ctrl_rect_absolute;
                     let inner = ctrl_padding_rect_absolute;
 
                     let lx = outer.x;
                     let ly = outer.y;
-                    let lwidth = (inner.x - outer.x).max(0.0);
+                    let lwidth = f32::max(0.0, inner.x - outer.x);
                     let lheight = outer.height;
                     let left = Rect::new(lx, ly, lwidth, lheight);
 
                     let tx = inner.x;
                     let ty = outer.y;
                     let twidth = inner.width;
-                    let theight = (inner.y - outer.y).max(0.0);
+                    let theight = f32::max(0.0, inner.y - outer.y);
                     let top = Rect::new(tx, ty, twidth, theight);
 
                     let rx = inner.x + inner.width;
                     let ry = outer.y;
-                    let rwidth = (outer.width - inner.width - lwidth).max(0.0);
+                    let rwidth = f32::max(0.0, outer.width - inner.width - lwidth);
                     let rheight = outer.height;
                     let right = Rect::new(rx, ry, rwidth, rheight);
 
                     let bx = inner.x;
                     let by = inner.y + inner.height;
                     let bwidth = inner.width;
-                    let bheight = (outer.height - inner.height - theight).max(0.0);
+                    let bheight = f32::max(0.0, outer.height - inner.height - theight);
                     let bottom = Rect::new(bx, by, bwidth, bheight);
 
                     if !left.is_empty() {
