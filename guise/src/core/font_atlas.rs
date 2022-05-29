@@ -191,13 +191,15 @@ pub struct GlyphInfo {
     pub height: f32,
     pub xmin: f32,
     pub ymin: f32,
+
+    pub width_scaled: f32,
+    pub height_scaled: f32,
 }
 
 // TODO(yan): Allocate everything in provided allocator.
 pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
     font_horizontal_line_metrics: fontdue::LineMetrics,
-    font_scale_factor: f32,
     max_atlas_glyph_width: u16,
     max_atlas_glyph_height: u16,
     image: Vec<u8>,
@@ -371,6 +373,9 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                     height: unscaled_metrics.height as f32,
                     xmin: unscaled_metrics.xmin as f32,
                     ymin: unscaled_metrics.ymin as f32,
+
+                    width_scaled: metrics.width as f32,
+                    height_scaled: metrics.height as f32,
                 });
 
                 cell_index += 1;
@@ -391,10 +396,12 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             let xmin = atlas_xmin / sf;
             let ymin = atlas_ymin / sf;
 
-            let atlas_width = max_atlas_glyph_width as f32 * SIZE_RATIO;
-            let atlas_height = max_atlas_glyph_height as f32 * SIZE_RATIO;
-            let width = atlas_width / sf;
-            let height = atlas_height / sf;
+            let atlas_glyph_width = max_atlas_glyph_width as f32 * SIZE_RATIO;
+            let atlas_glyph_height = max_atlas_glyph_height as f32 * SIZE_RATIO;
+            let width = atlas_glyph_width / sf;
+            let height = atlas_glyph_height / sf;
+            let width_scaled = atlas_glyph_width;
+            let height_scaled = atlas_glyph_height;
 
             GlyphInfo {
                 grid_x: 0,
@@ -406,13 +413,14 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                 height,
                 xmin,
                 ymin,
+                width_scaled,
+                height_scaled,
             }
         };
 
         Self {
             font,
             font_horizontal_line_metrics,
-            font_scale_factor,
             max_atlas_glyph_width,
             max_atlas_glyph_height,
             image: atlas_image,
@@ -437,10 +445,6 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
     pub fn font_horizontal_line_metrics(&self) -> fontdue::LineMetrics {
         self.font_horizontal_line_metrics
-    }
-
-    pub fn font_scale_factor(&self) -> f32 {
-        self.font_scale_factor
     }
 
     pub fn glyph_info(&self, c: char) -> GlyphInfo {
