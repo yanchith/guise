@@ -1927,14 +1927,6 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         // Emit rects based on generated line data.
         //
         let line_metrics = self.ui.font_atlas.font_horizontal_line_metrics();
-        let (atlas_width, atlas_height) = {
-            let atlas_size = self.ui.font_atlas.image_size();
-            (f32::from(atlas_size.0), f32::from(atlas_size.1))
-        };
-        let (atlas_cell_width, atlas_cell_height) = {
-            let atlas_cell_size = self.ui.font_atlas.grid_cell_size();
-            (f32::from(atlas_cell_size.0), f32::from(atlas_cell_size.1))
-        };
 
         let mut position_y = if lines.len() as f32 * line_metrics.new_line_size < available_height {
             match vertical_align {
@@ -1971,17 +1963,10 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                 let info = self.ui.font_atlas.glyph_info(c);
 
                 let rect = Rect::new(
-                    position_x + info.xmin,
-                    position_y + line_metrics.ascent - info.height - info.ymin,
-                    info.width,
-                    info.height,
-                );
-
-                let texture_rect = Rect::new(
-                    f32::from(info.grid_x) * atlas_cell_width / atlas_width,
-                    f32::from(info.grid_y) * atlas_cell_height / atlas_height,
-                    info.width_scaled / atlas_width,
-                    info.height_scaled / atlas_height,
+                    position_x + info.rect.x,
+                    position_y + line_metrics.ascent - info.rect.height - info.rect.y,
+                    info.rect.width,
+                    info.rect.height,
                 );
 
                 // TODO(yan): @Speed @Memory Does early software scissor make
@@ -1990,7 +1975,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                 // translate.
                 self.ui.draw_primitives.push(DrawPrimitive::Rect {
                     rect,
-                    texture_rect,
+                    texture_rect: info.atlas_rect,
                     texture_id: self.ui.font_atlas_texture_id,
                     color,
                     round_size_for_scale_factor: false,

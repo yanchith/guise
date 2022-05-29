@@ -7,6 +7,7 @@ use core::ops::{BitOr, BitOrAssign, RangeInclusive};
 use hashbrown::hash_map::{DefaultHashBuilder, Entry, HashMap};
 
 use crate::convert::{cast_u16, cast_u32, cast_usize};
+use crate::core::math::Rect;
 
 // TODO(yan): @Portability @Speed @Memory @Bloat Have the user provide the font
 // atlas and font metrics, glyph metrics and kerning info (need a flat format
@@ -183,24 +184,20 @@ impl Iterator for CodepointRangesIter {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GlyphInfo {
-    // The cell of the atlas where the glyph is.
-    pub grid_x: u16,
-    pub grid_y: u16,
-
     // Glyph advance with in logical pixels. Possibly subpixel value.
     pub advance_width: f32,
 
-    // Glyph width and height, xmin and ymin in logical pixels. These already
-    // represent floor/ceil bounding box around the subpixel values.
-    pub width: f32,
-    pub height: f32,
-    pub xmin: f32,
-    pub ymin: f32,
+    // TODO(yan): @Speed @Memory Since both GlyphInfo::rect and
+    // GlyphInfo::atlas_rect are whole-pixel coordinates, they could all be
+    // stored in u16 and blown out to f32 during text layout.
 
-    // TODO(yan): When this moves to build-time, consider not storing these, and
-    // instead storing the scale at which the fonts were rasterized.
-    pub width_scaled: f32,
-    pub height_scaled: f32,
+    // Glyph rect in logical pixels.
+    //
+    // TODO(yan): In what coordinates system is this?  For some reason we flip
+    // it (or something) in text layout.
+    pub rect: Rect,
+    // Atlas texture rect in texture coordinates.
+    pub atlas_rect: Rect,
 }
 
 // TODO(yan): Allocate everything in provided allocator. This is gated on moving
@@ -208,8 +205,6 @@ pub struct GlyphInfo {
 pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
     font_horizontal_line_metrics: fontdue::LineMetrics,
-    max_atlas_glyph_width: u16,
-    max_atlas_glyph_height: u16,
     image: Vec<u8>,
     image_width: u16,
     image_height: u16,
@@ -366,24 +361,29 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                     }
                 }
 
-                vacant_entry.insert(GlyphInfo {
-                    grid_x: cast_u16(grid_x),
-                    grid_y: cast_u16(grid_y),
+                let atlas_pixel_width = f32::from(atlas_pixel_width);
+                let atlas_pixel_height = f32::from(atlas_pixel_height);
 
+                vacant_entry.insert(GlyphInfo {
                     advance_width: unscaled_metrics.advance_width,
 
-                    // NB: width, height, xmin and ymin are in whole pixel
-                    // units, and we use that, because they represent positions
-                    // in the already rasterized image. Subpixel values are
-                    // available in the OutlineBounds struct, but using them
-                    // gives worse visual results (as expected?).
-                    width: unscaled_metrics.width as f32,
-                    height: unscaled_metrics.height as f32,
-                    xmin: unscaled_metrics.xmin as f32,
-                    ymin: unscaled_metrics.ymin as f32,
-
-                    width_scaled: metrics.width as f32,
-                    height_scaled: metrics.height as f32,
+                    // NB: rect values are whole pixel units, and we use that,
+                    // because they represent positions in the already
+                    // rasterized image. Subpixel values are available in the
+                    // OutlineBounds struct, but using them gives worse visual
+                    // results (as expected?).
+                    rect: Rect::new(
+                        unscaled_metrics.xmin as f32,
+                        unscaled_metrics.ymin as f32,
+                        unscaled_metrics.width as f32,
+                        unscaled_metrics.height as f32,
+                    ),
+                    atlas_rect: Rect::new(
+                        grid_x as f32 * f32::from(max_atlas_glyph_width) / atlas_pixel_width,
+                        grid_y as f32 * f32::from(max_atlas_glyph_height) / atlas_pixel_height,
+                        metrics.width as f32 / atlas_pixel_width,
+                        metrics.height as f32 / atlas_pixel_height,
+                    ),
                 });
 
                 cell_index += 1;
@@ -399,48 +399,27 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
             let advance_width = max_atlas_glyph_width as f32 * ADVANCE_SIZE_RATIO / sf;
 
-            let atlas_xmin = max_atlas_glyph_width as f32 * 0.5 * (1.0 - SIZE_RATIO);
-            let atlas_ymin = max_atlas_glyph_height as f32 * 0.5 * (1.0 - SIZE_RATIO);
-            let xmin = atlas_xmin / sf;
-            let ymin = atlas_ymin / sf;
-
             let atlas_glyph_width = max_atlas_glyph_width as f32 * SIZE_RATIO;
             let atlas_glyph_height = max_atlas_glyph_height as f32 * SIZE_RATIO;
             let width = atlas_glyph_width / sf;
             let height = atlas_glyph_height / sf;
-            let width_scaled = atlas_glyph_width;
-            let height_scaled = atlas_glyph_height;
 
             GlyphInfo {
-                grid_x: 0,
-                grid_y: 0,
-
                 advance_width,
-
-                width,
-                height,
-                xmin,
-                ymin,
-                width_scaled,
-                height_scaled,
+                rect: Rect::new(0.0, 0.0, width, height),
+                atlas_rect: Rect::ZERO,
             }
         };
 
         Self {
             font,
             font_horizontal_line_metrics,
-            max_atlas_glyph_width,
-            max_atlas_glyph_height,
             image: atlas_image,
             image_width: atlas_pixel_width,
             image_height: atlas_pixel_height,
             glyph_index_to_info,
             missing_glyph_info,
         }
-    }
-
-    pub fn grid_cell_size(&self) -> (u16, u16) {
-        (self.max_atlas_glyph_width, self.max_atlas_glyph_height)
     }
 
     pub fn image_size(&self) -> (u16, u16) {
