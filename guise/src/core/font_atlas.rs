@@ -8,9 +8,14 @@ use hashbrown::hash_map::{DefaultHashBuilder, Entry, HashMap};
 
 use crate::convert::{cast_u16, cast_u32, cast_usize};
 
-// TODO(yan): @Portability @Speed @Memory Think about having the user provide
-// the font atlas, or adding a mechanism for building the font-atlas in compile
-// time or as a build step.
+// TODO(yan): @Portability @Speed @Memory @Bloat Have the user provide the font
+// atlas and font metrics, glyph metrics and kerning info (need a flat format
+// for that) and create companion library that can be invoked from a build
+// script.
+//
+// Because the font may not be densely defined (and in fact, unicode has
+// reserved gaps), the storage format also has to store a mapping from
+// characters to the glyph info storage location.
 
 #[cfg(feature = "font_ibm_plex_mono")]
 pub static FONT_IBM_PLEX_MONO: &[u8] = include_bytes!("../../assets/IBMPlexMono-Regular.ttf");
@@ -192,11 +197,14 @@ pub struct GlyphInfo {
     pub xmin: f32,
     pub ymin: f32,
 
+    // TODO(yan): When this moves to build-time, consider not storing these, and
+    // instead storing the scale at which the fonts were rasterized.
     pub width_scaled: f32,
     pub height_scaled: f32,
 }
 
-// TODO(yan): Allocate everything in provided allocator.
+// TODO(yan): Allocate everything in provided allocator. This is gated on moving
+// fontdue to build pipeline.
 pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
     font_horizontal_line_metrics: fontdue::LineMetrics,
@@ -266,8 +274,6 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             if let Entry::Vacant(vacant_entry) = glyph_index_to_rasterized.entry(glyph_index) {
                 // NB: Rasterize with scale factor applied, but also get
                 // unscaled metrics for layout in logical pixels.
-                //
-                // TODO(yan): Font::rasterized_subpixel
                 let (metrics, image) = font.rasterize_indexed(glyph_index, font_size_scaled);
                 let unscaled_metrics = font.metrics_indexed(glyph_index, font_size);
 
@@ -351,6 +357,8 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                         let dst_index =
                             (dst_pixel_x + dst_pixel_y * usize::from(atlas_pixel_width)) * 4;
 
+                        // TODO(yan): Casey put premultiplied alpha everywhere,
+                        // [a, a, a, a]. Should we as well?
                         atlas_image[dst_index] = 255;
                         atlas_image[dst_index + 1] = 255;
                         atlas_image[dst_index + 2] = 255;
