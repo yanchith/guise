@@ -1962,12 +1962,8 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             for c in line_slice.chars() {
                 let info = self.ui.font_atlas.glyph_info(c);
 
-                let rect = Rect::new(
-                    position_x + info.rect.x,
-                    position_y + line_metrics.ascent - info.rect.height - info.rect.y,
-                    info.rect.width,
-                    info.rect.height,
-                );
+                let position = Vec2::new(position_x, position_y);
+                let rect = info.rect + position + Vec2::y(line_metrics.ascent);
 
                 // TODO(yan): @Speed @Memory Does early software scissor make
                 // sense here? We also do it later, when translating to the

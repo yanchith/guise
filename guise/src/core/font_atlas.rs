@@ -184,17 +184,10 @@ impl Iterator for CodepointRangesIter {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct GlyphInfo {
-    // Glyph advance with in logical pixels. Possibly subpixel value.
+    // Glyph advance with in logical pixels with subpixel precision.
     pub advance_width: f32,
-
-    // TODO(yan): @Speed @Memory Since both GlyphInfo::rect and
-    // GlyphInfo::atlas_rect are whole-pixel coordinates, they could all be
-    // stored in u16 and blown out to f32 during text layout.
-
-    // Glyph rect in logical pixels.
-    //
-    // TODO(yan): In what coordinates system is this?  For some reason we flip
-    // it (or something) in text layout.
+    // Glyph rect in logical pixels with subpixel precision. Rect position
+    // represents offset against baseline and the horizontal cursor.
     pub rect: Rect,
     // Atlas texture rect in texture coordinates.
     pub atlas_rect: Rect,
@@ -366,17 +359,12 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
                 vacant_entry.insert(GlyphInfo {
                     advance_width: unscaled_metrics.advance_width,
-
-                    // NB: rect values are whole pixel units, and we use that,
-                    // because they represent positions in the already
-                    // rasterized image. Subpixel values are available in the
-                    // OutlineBounds struct, but using them gives worse visual
-                    // results (as expected?).
                     rect: Rect::new(
-                        unscaled_metrics.xmin as f32,
-                        unscaled_metrics.ymin as f32,
-                        unscaled_metrics.width as f32,
-                        unscaled_metrics.height as f32,
+                        unscaled_metrics.bounds.xmin,
+                        // NB: Flip Y
+                        - unscaled_metrics.bounds.height - unscaled_metrics.bounds.ymin,
+                        unscaled_metrics.bounds.width,
+                        unscaled_metrics.bounds.height,
                     ),
                     atlas_rect: Rect::new(
                         grid_x as f32 * f32::from(max_atlas_glyph_width) / atlas_pixel_width,
@@ -390,7 +378,6 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             }
         }
 
-        // TODO(yan): This needs audit and tuning.
         let missing_glyph_info = {
             let sf = font_scale_factor;
 

@@ -17,6 +17,14 @@ impl Vec2 {
         Self { x, y }
     }
 
+    pub fn x(x: f32) -> Self {
+        Self { x, y: 0.0 }
+    }
+
+    pub fn y(y: f32) -> Self {
+        Self { x: 0.0, y }
+    }
+
     pub fn splat(v: f32) -> Self {
         Self { x: v, y: v }
     }

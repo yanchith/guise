@@ -71,9 +71,6 @@ fn main() {
             // guise::FONT_LIBERATION_MONO,
             guise::UnicodeRangeFlags::ALL,
             14.0,
-            // TODO(yan): If we increase the scale factor to something way above
-            // what the monitor has, like 4, we see increase in text
-            // sharpness. Why? Is it the missing subpixel rasterization?
             scale_factor as f32,
             std::alloc::Global,
         )
