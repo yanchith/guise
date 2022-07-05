@@ -35,11 +35,11 @@ impl Renderer {
         static FS_SOURCE: &[u32] =
             vk_shader_macros::include_glsl!("../guise_example/guise_renderer_wgpu.frag");
 
-        let vs_shader_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let vs_shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::SpirV(Cow::from(VS_SOURCE)),
         });
-        let fs_shader_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
+        let fs_shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
             source: wgpu::ShaderSource::SpirV(Cow::from(FS_SOURCE)),
         });
@@ -168,7 +168,7 @@ impl Renderer {
             fragment: Some(wgpu::FragmentState {
                 module: &fs_shader_module,
                 entry_point: "main",
-                targets: &[wgpu::ColorTargetState {
+                targets: &[Some(wgpu::ColorTargetState {
                     format: render_attachment_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent {
@@ -183,7 +183,7 @@ impl Renderer {
                         },
                     }),
                     write_mask: wgpu::ColorWrites::ALL,
-                }],
+                })],
             }),
             multiview: None,
         });
@@ -352,14 +352,14 @@ impl Renderer {
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
-            color_attachments: &[wgpu::RenderPassColorAttachment {
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: color_attachment,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(clear_color),
                     store: true,
                 },
-            }],
+            })],
             depth_stencil_attachment: None,
         });
 

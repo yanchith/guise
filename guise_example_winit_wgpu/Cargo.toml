@@ -13,12 +13,12 @@ license = "MIT"
 
 [dependencies]
 arrayvec = "0.7.2"
-bytemuck = { version = "1.9.1", features = ["derive"] }
+bytemuck = { version = "1.10.0", features = ["derive"] }
 guise = { path = "../guise", features = ["log", "font_proggy_clean", "font_roboto", "font_ibm_plex_mono", "font_ibm_plex_sans_jp", "font_liberation_mono"] }
-log = "0.4.16"
+log = "0.4.17"
 pollster = "0.2.5"
 pretty_env_logger = "0.4.0"
 raw-window-handle = "0.4.3"
 vk-shader-macros = "0.2.8"
-wgpu = { version = "0.12.0", features = ["spirv"] }
+wgpu = { version = "0.13.1", features = ["spirv"] }
 winit = "0.26.1"

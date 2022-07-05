@@ -38,12 +38,8 @@ fn main() {
     ))
     .expect("Failed to acquire gpu device and queue");
 
-    // TODO(yan): Find out why PresentMode::{Mailbox,Immediate} on
-    // (X11,Intel,Vulkan) and PresentMode::Immediate on
-    // (Windows,{Intel,Nvidia},Vulkan) doesn't have presentation latency while
-    // PresentMode::Fifo does (how many frames exactly?)
     let surface_present_mode = wgpu::PresentMode::Fifo;
-    let surface_format = surface.get_preferred_format(&adapter).unwrap();
+    let surface_format = wgpu::TextureFormat::Bgra8UnormSrgb;
     let initial_window_physical_size = window.inner_size();
     let initial_window_width = initial_window_physical_size.width;
     let initial_window_height = initial_window_physical_size.height;

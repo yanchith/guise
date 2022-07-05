@@ -6,7 +6,7 @@ edition = "2021"
 authors = ["yanchith <yanchi.toth@gmail.com>"]
 keywords = ["gui", "graphics"]
 categories = ["gui", "imgui", "portable"]
-description = "A winit & wgpu example for guise"
+description = "A portable immediate-mode UI"
 readme = "README.md"
 repository = "https://github.com/virtual-sunset/guise"
 license = "MIT"
@@ -21,11 +21,11 @@ default = []
 
 [dependencies]
 arrayvec = { version = "0.7.2", default-features = false }
-bytemuck = { version = "1.9.1", features = ["derive"] }
+bytemuck = { version = "1.10.0", features = ["derive"] }
 fontdue = "0.7.2"
-hashbrown = { version = "0.12.0", features = ["nightly"] }
+hashbrown = { version = "0.12.1", features = ["nightly"] }
 libm = "0.2.2"
-log = { version = "0.4.16", optional = true }
+log = { version = "0.4.17", optional = true }
 
 [dev-dependencies]
 quickcheck = "1.0.3"
