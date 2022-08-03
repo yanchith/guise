@@ -441,6 +441,7 @@ pub fn draw_ui<A: Allocator + Clone>(
         );
 
         guise::separator(frame, line!());
+        guise::text(frame, line!(), "Text inputs");
 
         match guise::input_text(frame, line!(), &mut state.input_text_heap, "Heap String") {
             (_, guise::InputTextSubmit::None) => (),
@@ -460,6 +461,7 @@ pub fn draw_ui<A: Allocator + Clone>(
         }
 
         guise::separator(frame, line!());
+        guise::text(frame, line!(), "Sliders");
 
         guise::drag_float(
             frame,
@@ -504,6 +506,27 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::drag_int3(frame, line!(), &mut state.drag_int3_value, "IVec3");
         guise::drag_int4(frame, line!(), &mut state.drag_int4_value, "IVec4");
 
+        guise::end_window(frame);
+    }
+
+    {
+        guise::begin_window(frame, line!(), "1%", "1%", 350.0, 300.0);
+        guise::Panel::new(line!(), "100%", "100%")
+            .set_resize_height_to_fit_content(true)
+            .begin(frame);
+
+        // TODO(yan): The "Can you see me?" inside has inconsistent
+        // padding/margin if the panel starts with 0 height and grows because of
+        // the RESIZE_TO_FIT_VERTICAL flag. It works properly if the height is
+        // large enough to contain everything from the start and then shrinks
+        // becuase of RESIZE_TO_FIT_VERTICAL.
+        guise::text(frame, line!(), "This is a test for RESIZE_TO_FIT flags");
+
+        guise::button(frame, line!(), "Hello");
+        guise::text(frame, line!(), "Can you see me?");
+        guise::button(frame, line!(), "Bye");
+
+        guise::end_panel(frame);
         guise::end_window(frame);
     }
 }

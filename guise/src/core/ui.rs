@@ -12,9 +12,6 @@ use crate::core::math::{Rect, Vec2};
 const ROOT_IDX: usize = 0;
 const OVERLAY_ROOT_IDX: usize = 1;
 
-const VERTICAL_RESIZE_FLAGS: CtrlFlags =
-    CtrlFlags::SHRINK_TO_FIT_INLINE_VERTICAL | CtrlFlags::RESIZE_TO_FIT_VERTICAL;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Inputs(u32);
 
@@ -152,33 +149,7 @@ impl CtrlFlags {
     pub const CAPTURE_ACTIVE: Self = Self(0x04);
 
     #[allow(dead_code)]
-    const __RESERVED: Self = Self(0x08);
-
-    /// Whether to attempt shrinking the control's rect width to the width of
-    /// its inline contents (text or geometry) before layout and render. This
-    /// will only ever shrink and never grow.
-    ///
-    /// One usecase is creating controls that take up space based on their
-    /// contents. They can start with rects occupying all available width (the
-    /// parent's inner height) and use this flag to shrink their rect
-    /// dynamically.
-    ///
-    /// This works, becuase the layout of inline content is immediately
-    /// available when a control is popped.
-    pub const SHRINK_TO_FIT_INLINE_HORIZONTAL: Self = Self(0x10);
-
-    /// Whether to attempt shrinking the control's rect height to the height of
-    /// its inline contents (text or geometry) before layout and render. This
-    /// will only ever shrink and never grow.
-    ///
-    /// One usecase is creating controls that take up space based on their
-    /// contents. They can start with rects occupying all available height (the
-    /// parent's inner height) and use this flag to shrink their rect
-    /// dynamically.
-    ///
-    /// This works, becuase the layout of inline content is immediately
-    /// available when a control is popped.
-    pub const SHRINK_TO_FIT_INLINE_VERTICAL: Self = Self(0x20);
+    pub const __RESERVED: Self = Self(0x08);
 
     /// Whether to resize the control's rect width to the width of its contents,
     /// child or inline.
@@ -190,7 +161,7 @@ impl CtrlFlags {
     /// for rendering. Any interactivity may experience a one frame lag,
     /// however, because building the UI happens before layout is computed, and
     /// only has layout data from last frame, if any.
-    pub const RESIZE_TO_FIT_HORIZONTAL: Self = Self(0x40);
+    pub const RESIZE_TO_FIT_HORIZONTAL: Self = Self(0x10);
 
     /// Whether to resize the control's rect height to the height of its contents,
     /// child or inline.
@@ -202,19 +173,15 @@ impl CtrlFlags {
     /// for rendering. Any interactivity may experience a one frame lag,
     /// however, because building the UI happens before layout is computed, and
     /// only has layout data from last frame, if any.
-    pub const RESIZE_TO_FIT_VERTICAL: Self = Self(0x80);
+    pub const RESIZE_TO_FIT_VERTICAL: Self = Self(0x20);
 
     pub const NONE: Self = Self(0);
     pub const ALL: Self = Self::CAPTURE_SCROLL
         | Self::CAPTURE_HOVER
         | Self::CAPTURE_ACTIVE
-        | Self::SHRINK_TO_FIT_INLINE_HORIZONTAL
-        | Self::SHRINK_TO_FIT_INLINE_VERTICAL
         | Self::RESIZE_TO_FIT_HORIZONTAL
         | Self::RESIZE_TO_FIT_VERTICAL;
 
-    pub const ALL_SHRINK_TO_FIT_INLINE: Self =
-        Self::SHRINK_TO_FIT_INLINE_HORIZONTAL | Self::SHRINK_TO_FIT_INLINE_VERTICAL;
     pub const ALL_RESIZE_TO_FIT: Self =
         Self::RESIZE_TO_FIT_HORIZONTAL | Self::RESIZE_TO_FIT_VERTICAL;
 
@@ -1401,42 +1368,6 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
         let build_parent = &mut self.ui.tree[build_parent_idx];
         let build_parent_parent_idx = build_parent.parent_idx;
 
-        if build_parent
-            .flags
-            .intersects(CtrlFlags::ALL_SHRINK_TO_FIT_INLINE)
-        {
-            assert!(build_parent.child_idx == None);
-
-            if let Some(inline_content_rect) = build_parent.inline_content_rect {
-                let width = if build_parent
-                    .flags
-                    .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_HORIZONTAL)
-                {
-                    f32::min(
-                        build_parent.rect.width,
-                        inline_content_rect.x + inline_content_rect.width,
-                    )
-                } else {
-                    build_parent.rect.width
-                };
-
-                let height = if build_parent
-                    .flags
-                    .intersects(CtrlFlags::SHRINK_TO_FIT_INLINE_VERTICAL)
-                {
-                    f32::min(
-                        build_parent.rect.height,
-                        inline_content_rect.y + inline_content_rect.height,
-                    )
-                } else {
-                    build_parent.rect.height
-                };
-
-                build_parent.rect =
-                    Rect::new(build_parent.rect.x, build_parent.rect.y, width, height);
-            }
-        }
-
         if let Some(build_sibling_idx) = self.ui.build_sibling_idx {
             self.ui.tree[build_sibling_idx].sibling_idx = None;
         } else {
@@ -1740,7 +1671,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         // Note that horizontal align still makes sense for shrinking, because
         // the lines will still be jagged and the width difference between
         // longest line and current line will provide the alignment space.
-        let vertical_align = if parent.flags.intersects(VERTICAL_RESIZE_FLAGS) {
+        let vertical_align = if parent.flags.intersects(CtrlFlags::RESIZE_TO_FIT_VERTICAL) {
             Align::Start
         } else {
             vertical_align

@@ -47,7 +47,7 @@ impl<'a> Text<'a> {
         // it), but because Ctrl::draw_text does its own aligning and insetting,
         // this is never visible.
 
-        ctrl.set_flags(CtrlFlags::ALL_SHRINK_TO_FIT_INLINE);
+        ctrl.set_flags(CtrlFlags::ALL_RESIZE_TO_FIT);
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, parent_size.x, parent_size.y));
 
