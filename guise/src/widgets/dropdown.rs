@@ -63,6 +63,8 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
     }
 
     pub fn show<A: Allocator + Clone>(&mut self, frame: &mut Frame<A>) -> bool {
+        const OVERLAY_SPACING: f32 = 5.0;
+
         let parent_size = frame.ctrl_inner_size();
         let window_size = frame.window_size();
         let cursor_position = frame.cursor_position();
@@ -80,17 +82,36 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
 
         let absolute_position = ctrl.absolute_position();
 
-        let overlay_y = absolute_position.y + self.theme.dropdown_height + 5.0;
+        let overlay_y = absolute_position.y + self.theme.dropdown_height + OVERLAY_SPACING;
 
-        let computed_height =
-            self.options.len() as f32 * (self.theme.button_height + 2.0 * self.theme.button_margin);
-        let available_height = f32::max(window_size.y - overlay_y, 0.0);
-        let overlay_height = f32::min(
-            f32::min(computed_height, available_height),
+        let available_height_up = overlay_y;
+        let available_height_down = f32::max(window_size.y - overlay_y, 0.0);
+
+        let overlay_height_requested = f32::min(
+            self.options.len() as f32 * (self.theme.button_height + 2.0 * self.theme.button_margin),
             self.theme.dropdown_overlay_max_height,
         );
 
-        let overlay_rect = Rect::new(absolute_position.x, overlay_y, width, overlay_height);
+        let overlay_rect = if overlay_height_requested > available_height_down {
+            if available_height_down > available_height_up {
+                Rect::new(absolute_position.x, overlay_y, width, available_height_down)
+            } else {
+                let height = f32::min(available_height_up, overlay_height_requested);
+                Rect::new(
+                    absolute_position.x,
+                    absolute_position.y - height - OVERLAY_SPACING,
+                    width,
+                    height,
+                )
+            }
+        } else {
+            Rect::new(
+                absolute_position.x,
+                overlay_y,
+                width,
+                overlay_height_requested,
+            )
+        };
 
         let hovered = ctrl.hovered();
         let mut active = ctrl.active();
@@ -163,7 +184,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             ctrl.set_layout(Layout::Vertical);
             ctrl.set_rect(overlay_rect);
 
-            // NB: Margin is zero, because we are setting an absolute position.
+            // Margin is zero, because we are setting an absolute position.
             ctrl.set_padding(0.0);
             ctrl.set_border(self.theme.dropdown_border);
             ctrl.set_margin(0.0);
