@@ -60,14 +60,19 @@ where
         let received_characters: ArrayString<32> =
             ArrayString::from(frame.received_characters()).unwrap();
 
-        let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
-        let label_width = LABEL_WIDTH_RATIO * width;
-        let inner_width = f32::max(0.0, width - label_width - LABEL_SPACING);
+        let outer_width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
+        let label_width = LABEL_WIDTH_RATIO * outer_width;
+        let inner_width = f32::max(0.0, outer_width - label_width - LABEL_SPACING);
 
         let mut outer_ctrl = frame.push_ctrl(self.id);
         outer_ctrl.set_flags(CtrlFlags::NONE);
         outer_ctrl.set_layout(Layout::Horizontal);
-        outer_ctrl.set_rect(Rect::new(0.0, 0.0, width, self.theme.input_text_height));
+        outer_ctrl.set_rect(Rect::new(
+            0.0,
+            0.0,
+            outer_width,
+            self.theme.input_text_height,
+        ));
         outer_ctrl.set_padding(0.0);
         outer_ctrl.set_border(0.0);
         outer_ctrl.set_margin(self.theme.input_text_margin);
