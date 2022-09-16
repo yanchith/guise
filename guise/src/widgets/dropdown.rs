@@ -42,6 +42,8 @@ pub struct Dropdown<'a, T: AsRef<str>> {
     options: &'a [T],
     selected: &'a mut Option<usize>,
 
+    allow_unselect: bool,
+
     theme: &'a Theme,
 }
 
@@ -53,8 +55,15 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             options,
             selected,
 
+            allow_unselect: false,
+
             theme: &Theme::DEFAULT,
         }
+    }
+
+    pub fn set_allow_unselect(&mut self, allow_unselect: bool) -> &mut Self {
+        self.allow_unselect = allow_unselect;
+        self
     }
 
     pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
@@ -193,8 +202,15 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             ctrl.set_draw_self_border_color(self.theme.dropdown_border_color_active);
             ctrl.set_draw_self_background_color(self.theme.dropdown_background_color_active);
 
+            if self.allow_unselect {
+                if button(frame, 0, "") {
+                    *self.selected = None;
+                    changed = true;
+                }
+            }
+
             for (i, option) in self.options.iter().enumerate() {
-                if button(frame, cast_u32(i), option.as_ref()) {
+                if button(frame, 1 + cast_u32(i), option.as_ref()) {
                     *self.selected = Some(i);
                     changed = true;
                 }

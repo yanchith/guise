@@ -112,7 +112,8 @@ fn main() {
         drag_int2_value: [0; 2],
         drag_int3_value: [0; 3],
         drag_int4_value: [0; 4],
-        dropdown_selected_option: None,
+        dropdown1_selected_option: None,
+        dropdown2_selected_option: None,
     };
 
     let time_start = Instant::now();

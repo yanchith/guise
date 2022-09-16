@@ -60,7 +60,8 @@ pub struct State {
     pub drag_int2_value: [i32; 2],
     pub drag_int3_value: [i32; 3],
     pub drag_int4_value: [i32; 4],
-    pub dropdown_selected_option: Option<usize>,
+    pub dropdown1_selected_option: Option<usize>,
+    pub dropdown2_selected_option: Option<usize>,
 }
 
 pub fn draw_ui<A: Allocator + Clone>(
@@ -424,21 +425,33 @@ pub fn draw_ui<A: Allocator + Clone>(
     {
         guise::begin_window(frame, line!(), "1%", "51%", "39%", "48%");
 
+        guise::text(frame, line!(), "Dropdowns");
+
+        static DAMAGE_TYPES: &[&str] = &[
+            "Slashing",
+            "Piercing",
+            "Bludgeoning",
+            "Fire",
+            "Lightning",
+            "Shadow",
+            "Emotional",
+        ];
+
         guise::dropdown(
             frame,
             line!(),
             "Damage Type",
-            &[
-                "Slashing",
-                "Piercing",
-                "Bludgeoning",
-                "Fire",
-                "Lightning",
-                "Shadow",
-                "Emotional",
-            ],
-            &mut state.dropdown_selected_option,
+            DAMAGE_TYPES,
+            &mut state.dropdown1_selected_option,
         );
+        guise::Dropdown::new(
+            line!(),
+            "Damage Type (allows unselect)",
+            DAMAGE_TYPES,
+            &mut state.dropdown2_selected_option,
+        )
+        .set_allow_unselect(true)
+        .show(frame);
 
         guise::separator(frame, line!());
         guise::text(frame, line!(), "Text inputs");
