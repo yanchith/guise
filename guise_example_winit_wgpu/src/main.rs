@@ -358,9 +358,9 @@ fn main() {
                         &mut encoder,
                         &view,
                         wgpu::Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.2,
+                            r: 0.04,
+                            g: 0.04,
+                            b: 0.04,
                             a: 1.0,
                         },
                         window_width,

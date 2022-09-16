@@ -364,7 +364,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
-                0x102030ff,
+                0x907030ff,
             );
             guise::end_window(frame);
         }
@@ -381,7 +381,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
-                0x102030ff,
+                0x907030ff,
             );
             guise::end_window(frame);
         }
@@ -399,7 +399,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
-                0x102030ff,
+                0x907030ff,
             );
             guise::end_window(frame);
         }
@@ -414,7 +414,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                 guise::Align::Center,
                 guise::Align::Center,
                 guise::Wrap::Word,
-                0x102030ff,
+                0x907030ff,
             );
             guise::end_window(frame);
         }
