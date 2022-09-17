@@ -39,7 +39,7 @@ fn main() {
     .expect("Failed to acquire gpu device and queue");
 
     let surface_present_mode = wgpu::PresentMode::Fifo;
-    let surface_format = wgpu::TextureFormat::Bgra8UnormSrgb;
+    let surface_format = wgpu::TextureFormat::Bgra8Unorm;
     let initial_window_physical_size = window.inner_size();
     let initial_window_width = initial_window_physical_size.width;
     let initial_window_height = initial_window_physical_size.height;
@@ -358,9 +358,9 @@ fn main() {
                         &mut encoder,
                         &view,
                         wgpu::Color {
-                            r: 0.04,
-                            g: 0.04,
-                            b: 0.04,
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0,
                             a: 1.0,
                         },
                         window_width,

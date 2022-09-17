@@ -77,7 +77,7 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::begin_window(frame, line!(), "41%", "1%", "58%", "98%");
 
         {
-            guise::Panel::new(line!(), "100%", "50%")
+            guise::Panel::new(line!(), "100%", "48%")
                 .set_layout(guise::Layout::Horizontal)
                 .set_draw_padding(false)
                 .begin(frame);
@@ -112,8 +112,7 @@ pub fn draw_ui<A: Allocator + Clone>(
 
                 guise::separator(frame, line!());
 
-                guise::text(
-                    frame,
+                guise::Text::new(
                     line!(),
                     fmt!(
                         s,
@@ -129,7 +128,9 @@ pub fn draw_ui<A: Allocator + Clone>(
                         stats.want_capture_keyboard,
                         stats.want_capture_mouse,
                     ),
-                );
+                )
+                .set_horizontal_align(guise::Align::Start)
+                .show(frame);
 
                 guise::end_panel(frame);
             }
@@ -168,8 +169,10 @@ pub fn draw_ui<A: Allocator + Clone>(
             guise::end_panel(frame);
         }
 
+        guise::separator(frame, line!());
+
         {
-            guise::Panel::new(line!(), "100%", "50%")
+            guise::Panel::new(line!(), "100%", "48%")
                 .set_layout(guise::Layout::Horizontal)
                 .set_draw_padding(false)
                 .begin(frame);
@@ -185,7 +188,9 @@ pub fn draw_ui<A: Allocator + Clone>(
                     let j = i + 1;
                     let k = i + 2;
 
-                    guise::text(frame, i, TEXT);
+                    guise::Text::new(i, TEXT)
+                        .set_horizontal_align(guise::Align::Start)
+                        .show(frame);
                     guise::Text::new(j, TEXT)
                         .set_horizontal_align(guise::Align::Center)
                         .show(frame);

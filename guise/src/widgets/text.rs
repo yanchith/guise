@@ -19,7 +19,7 @@ impl<'a> Text<'a> {
         Self {
             id,
             text,
-            horizontal_align: Align::Start,
+            horizontal_align: Align::Center,
             theme: &Theme::DEFAULT,
         }
     }
@@ -51,8 +51,8 @@ impl<'a> Text<'a> {
         ctrl.set_layout(Layout::Vertical);
         ctrl.set_rect(Rect::new(0.0, 0.0, parent_size.x, parent_size.y));
 
-        // NB: Padding is not set, because there's no child controls, and the
-        // text layout computes uses its own inset.
+        // Padding is not set through the control, but applied with drawing,
+        // because the text layout uses its own inset.
         ctrl.set_border(border);
         ctrl.set_margin(margin);
 

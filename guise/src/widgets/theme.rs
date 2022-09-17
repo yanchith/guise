@@ -124,7 +124,7 @@ pub struct Theme {
 const TRANSPARENT: u32 = 0xffffff00;
 
 const WINDOW_BACKGROUND_COLOR: u32 = 0x080808fa;
-const WINDOW_BACKGROUND_COLOR_HOVERED: u32 = 0x080808fa;
+const WINDOW_BORDER_COLOR: u32 = 0x202020ff;
 
 const BORDER_COLOR: u32 = 0x202020ff;
 const BORDER_COLOR_HOVERED: u32 = 0x303030ff;
@@ -239,15 +239,15 @@ impl Theme {
         dropdown_margin: 2.0,
         dropdown_border: 1.0,
 
-        panel_border_color: 0xa0a0a050,
+        panel_border_color: TRANSPARENT,
         panel_background_color: TRANSPARENT,
-        panel_border: 1.0,
-        panel_padding: 2.0,
+        panel_border: 0.0,
+        panel_padding: 0.0,
 
         window_border_color: BORDER_COLOR,
-        window_border_color_hovered: BORDER_COLOR_HOVERED,
+        window_border_color_hovered: WINDOW_BORDER_COLOR,
         window_background_color: WINDOW_BACKGROUND_COLOR,
-        window_background_color_hovered: WINDOW_BACKGROUND_COLOR_HOVERED,
+        window_background_color_hovered: WINDOW_BACKGROUND_COLOR,
         window_border: 1.0,
         window_padding: 5.0,
 
