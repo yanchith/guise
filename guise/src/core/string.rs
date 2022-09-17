@@ -51,7 +51,7 @@ impl<A: Allocator> AsciiVec<A> {
     pub fn from_bytes_in(bytes: &[u8], allocator: A) -> Self {
         assert!(bytes.is_ascii());
 
-        // NB: <[u8]>::is_ascii should imply valid UTF-8
+        // <[u8]>::is_ascii should imply valid UTF-8
         debug_assert!(str::from_utf8(bytes).is_ok());
 
         let mut data = Vec::with_capacity_in(bytes.len(), allocator);
@@ -65,10 +65,9 @@ impl<A: Allocator> AsciiVec<A> {
     }
 }
 
-// NB: Implemented manually, because PartialEq/Eq/Hash are not implemented for
-// some allocators e.g. Global, and derive wouldn't generate the impl. Also
-// hashing strings is a bit special in libcore, so we need to match that
-// behavior.
+// Implemented manually, because PartialEq/Eq/Hash are not implemented for some
+// allocators e.g. Global, and derive wouldn't generate the impl. Also hashing
+// strings is a bit special in libcore, so we need to match that behavior.
 impl<A: Allocator> PartialEq for AsciiVec<A> {
     fn eq(&self, other: &Self) -> bool {
         self.0.eq(&other.0)
@@ -91,8 +90,8 @@ impl<A: Allocator> Eq for AsciiVec<A> {}
 
 impl<A: Allocator> Hash for AsciiVec<A> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
-        // this as a &str, not &[u8]
+        // str::hash adds a write_u8(0xff) to its hasher, so we must hash this
+        // as a &str, not &[u8]
         Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
     }
 }
@@ -187,6 +186,10 @@ impl<A: Allocator> TextStorage for AsciiVec<A> {
 pub struct AsciiArrayVec<const N: usize>(ArrayVec<u8, N>);
 
 impl<const N: usize> AsciiArrayVec<N> {
+    pub const fn const_new() -> Self {
+        Self(ArrayVec::new_const())
+    }
+
     pub fn new() -> Self {
         Self(ArrayVec::new())
     }
@@ -203,7 +206,7 @@ impl<const N: usize> AsciiArrayVec<N> {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         assert!(bytes.is_ascii());
 
-        // NB: <[u8]>::is_ascii should imply valid UTF-8
+        // <[u8]>::is_ascii should imply valid UTF-8
         debug_assert!(str::from_utf8(bytes).is_ok());
 
         let mut data: ArrayVec<u8, N> = ArrayVec::new();
@@ -217,7 +220,7 @@ impl<const N: usize> AsciiArrayVec<N> {
     }
 }
 
-// NB: Implemented manually, because to have all possible impls of PartialEq, as
+// Implemented manually, because to have all possible impls of PartialEq, as
 // well as matching string hashing from libcore.
 impl<const N: usize> PartialEq for AsciiArrayVec<N> {
     fn eq(&self, other: &Self) -> bool {
@@ -241,8 +244,8 @@ impl<const N: usize> Eq for AsciiArrayVec<N> {}
 
 impl<const N: usize> Hash for AsciiArrayVec<N> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // NB: str::hash adds a write_u8(0xff) to its hasher, so we must hash
-        // this as a &str, not &[u8]
+        // str::hash adds a write_u8(0xff) to its hasher, so we must hash this
+        // as a &str, not &[u8]
         Hash::hash(unsafe { str::from_utf8_unchecked(&self.0) }, state)
     }
 }
