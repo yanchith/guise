@@ -461,17 +461,29 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::separator(frame, line!());
         guise::text(frame, line!(), "Text inputs");
 
-        match guise::input_text(frame, line!(), &mut state.input_text_heap, "Heap String") {
-            (_, guise::InputTextSubmit::None) => (),
-            (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
-            (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
-        }
+        guise::input_text_with_callback(
+            frame,
+            line!(),
+            &mut state.input_text_heap,
+            "Heap String",
+            |data, _| match data.submit {
+                guise::InputTextSubmit::None => (),
+                guise::InputTextSubmit::Submit => state.input_text_submit_count += 1,
+                guise::InputTextSubmit::Cancel => state.input_text_cancel_count += 1,
+            },
+        );
 
-        match guise::input_text(frame, line!(), &mut state.input_text_inline, "Stack String") {
-            (_, guise::InputTextSubmit::None) => (),
-            (_, guise::InputTextSubmit::Submit) => state.input_text_submit_count += 1,
-            (_, guise::InputTextSubmit::Cancel) => state.input_text_cancel_count += 1,
-        }
+        guise::input_text_with_callback(
+            frame,
+            line!(),
+            &mut state.input_text_inline,
+            "Stack String",
+            |data, _| match data.submit {
+                guise::InputTextSubmit::None => (),
+                guise::InputTextSubmit::Submit => state.input_text_submit_count += 1,
+                guise::InputTextSubmit::Cancel => state.input_text_cancel_count += 1,
+            },
+        );
 
         if guise::button(frame, line!(), "Clear") {
             state.input_text_heap.clear();
