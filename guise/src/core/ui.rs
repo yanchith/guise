@@ -225,6 +225,7 @@ struct CtrlNode {
     child_idx: Option<usize>,
     sibling_idx: Option<usize>,
 
+    first_frame: u32,
     // Deallocate if not current.
     last_frame: u32,
     // Used to sort free layout controls for detecting hover and rendering.
@@ -292,6 +293,8 @@ pub struct Ui<A: Allocator + Clone> {
     hovered_ctrl_idx: Option<usize>,
     hovered_capturing_ctrl_idx: Option<usize>,
 
+    last_ctrl_idx: Option<usize>,
+
     // TODO(yan): When exactly should we be capturing keyboard and mouse
     // automatically, when no control requests it? Currently we capture mouse
     // when something is hovered (ImGui does the same). ImGui also automatically
@@ -340,6 +343,7 @@ impl<A: Allocator + Clone> Ui<A> {
             child_idx: None,
             sibling_idx: None,
 
+            first_frame: 0,
             last_frame: 0,
             last_frame_in_active_path: 0,
 
@@ -399,6 +403,8 @@ impl<A: Allocator + Clone> Ui<A> {
             active_ctrl_idx: None,
             hovered_ctrl_idx: None,
             hovered_capturing_ctrl_idx: None,
+
+            last_ctrl_idx: None,
 
             want_capture_keyboard: false,
             want_capture_mouse: false,
@@ -472,6 +478,8 @@ impl<A: Allocator + Clone> Ui<A> {
         self.want_capture_mouse = false;
 
         self.current_frame = self.current_frame.wrapping_add(1);
+
+        self.last_ctrl_idx = None;
 
         let root_ctrl = &mut self.tree[ROOT_IDX];
         root_ctrl.last_frame = self.current_frame;
@@ -1314,6 +1322,7 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
                 child_idx: None,
                 sibling_idx,
 
+                first_frame: self.ui.current_frame,
                 last_frame: self.ui.current_frame,
                 last_frame_in_active_path: 0,
 
@@ -1353,6 +1362,8 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
 
     pub fn pop_ctrl(&mut self) {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
+
+        self.ui.last_ctrl_idx = Some(build_parent_idx);
 
         // Finalize the parent and last inserted sibling controls and clean
         // their indices so that they only reference live controls. If no child
@@ -1418,6 +1429,22 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
 
     pub fn cursor_position(&self) -> Vec2 {
         self.ui.cursor_position
+    }
+
+    pub fn last_ctrl_is_hovered(&self) -> bool {
+        self.ui.last_ctrl_idx == self.ui.hovered_capturing_ctrl_idx
+    }
+
+    pub fn last_ctrl_is_active(&self) -> bool {
+        self.ui.last_ctrl_idx == self.ui.active_ctrl_idx
+    }
+
+    pub fn last_ctrl_is_new(&self) -> bool {
+        if let Some(last_ctrl_idx) = self.ui.last_ctrl_idx {
+            self.ui.tree[last_ctrl_idx].first_frame == self.ui.current_frame
+        } else {
+            false
+        }
     }
 
     pub fn inputs_pressed(&self) -> Inputs {
@@ -1556,11 +1583,19 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         self.ui.tree[self.idx].draw_self_background_color = background_color;
     }
 
-    pub fn hovered(&self) -> bool {
+    pub fn is_new(&self) -> bool {
+        if let Some(build_parent_idx) = self.ui.build_parent_idx {
+            self.ui.tree[build_parent_idx].first_frame == self.ui.current_frame
+        } else {
+            false
+        }
+    }
+
+    pub fn is_hovered(&self) -> bool {
         self.ui.build_parent_idx == self.ui.hovered_capturing_ctrl_idx
     }
 
-    pub fn active(&self) -> bool {
+    pub fn is_active(&self) -> bool {
         self.ui.active_ctrl_idx == Some(self.idx)
     }
 

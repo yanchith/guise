@@ -74,8 +74,8 @@ impl<'a> Button<'a> {
         ctrl.set_border(border);
         ctrl.set_margin(margin);
 
-        let hovered = ctrl.hovered();
-        let active = ctrl.active();
+        let hovered = ctrl.is_hovered();
+        let active = ctrl.is_active();
 
         let (active, changed) = if active && lmb_released {
             ctrl.set_active(false);

@@ -152,8 +152,8 @@ where
     inner_ctrl.set_border(theme.input_text_border);
     inner_ctrl.set_margin(0.0);
 
-    let hovered = inner_ctrl.hovered();
-    let active = inner_ctrl.active();
+    let hovered = inner_ctrl.is_hovered();
+    let active = inner_ctrl.is_active();
 
     let mut text_cursor = text_cursor(inner_ctrl.state());
     text_cursor = u32::clamp(text_cursor, 0, cast_u32(text.len()));

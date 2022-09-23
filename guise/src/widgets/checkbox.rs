@@ -50,8 +50,8 @@ impl<'a> Checkbox<'a> {
         ctrl.set_border(self.theme.checkbox_border);
         ctrl.set_margin(self.theme.checkbox_margin);
 
-        let hovered = ctrl.hovered();
-        let active = ctrl.active();
+        let hovered = ctrl.is_hovered();
+        let active = ctrl.is_active();
 
         let (active, changed) = if active && lmb_released {
             ctrl.set_active(false);

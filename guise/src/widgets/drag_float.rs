@@ -388,8 +388,8 @@ fn show<A: Allocator + Clone>(
         inner_ctrl.set_border(theme.drag_float_border);
         inner_ctrl.set_margin(0.0);
 
-        let hovered = inner_ctrl.hovered();
-        let active = inner_ctrl.active();
+        let hovered = inner_ctrl.is_hovered();
+        let active = inner_ctrl.is_active();
         let state = inner_ctrl.state();
 
         let (active, changed_i) = if active {

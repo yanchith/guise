@@ -122,7 +122,7 @@ impl<'a> Window<'a> {
         let lmb_released = frame.inputs_released() == Inputs::MB_LEFT;
 
         let mut ctrl = frame.push_ctrl(self.id);
-        let hovered = ctrl.hovered();
+        let hovered = ctrl.is_hovered();
 
         let state = ctrl.state();
         let (x, y, mut width, mut height, activity, initialized) = if initialized(state) {

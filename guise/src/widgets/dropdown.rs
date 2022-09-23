@@ -157,8 +157,8 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             )
         };
 
-        let hovered = active_area_ctrl.hovered();
-        let mut active = active_area_ctrl.active();
+        let hovered = active_area_ctrl.is_hovered();
+        let mut active = active_area_ctrl.is_active();
 
         let state = active_area_ctrl.state_mut();
         let mut open = open(state);
