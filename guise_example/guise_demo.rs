@@ -142,7 +142,7 @@ pub fn draw_ui<A: Allocator + Clone>(
                     .set_draw_border(false)
                     .begin(frame);
 
-                if guise::Button::new(0, "<image>")
+                if guise::Button::new(line!(), "<image>")
                     .set_image(0)
                     .set_tooltip("An image button")
                     .show(frame)
@@ -150,17 +150,19 @@ pub fn draw_ui<A: Allocator + Clone>(
                     state.button_click_count += 1;
                 }
 
-                if guise::Button::new(1, "A button with multiline text.\n And a footnote.")
+                if guise::Button::new(line!(), "A button with multiline text.\n And a footnote.")
                     .set_tooltip(TEXT)
                     .show(frame)
                 {
                     state.button_click_count += 1;
                 }
 
-                for i in 2..=50 {
-                    if guise::button(frame, i, fmt!(s, "Button {}", i)) {
+                for i in 0..=20 {
+                    frame.push_id_namespace(i);
+                    if guise::button(frame, line!(), fmt!(s, "Button {}", i)) {
                         state.button_click_count += 1;
                     }
+                    frame.pop_id_namespace();
                 }
 
                 guise::end_panel(frame);

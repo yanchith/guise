@@ -217,7 +217,7 @@ pub type CtrlState = [u8; 64];
 #[derive(Debug, Clone, PartialEq)]
 struct CtrlNode {
     // Unique across siblings, but no further.
-    id: u32,
+    id: u64,
 
     // TODO(yan): @Speed @Memory Make indices more compact. Option<usize> is 16
     // bytes, but we could carve out a niche.
@@ -272,6 +272,7 @@ pub struct Ui<A: Allocator + Clone> {
     font_atlas_texture_id: u64,
 
     tree: Vec<CtrlNode, A>,
+    id_namespace_stack: Vec<u32, A>,
 
     building_overlay: bool,
     build_parent_idx: Option<usize>,
@@ -320,12 +321,14 @@ impl<A: Allocator + Clone> Ui<A> {
         font_rasterization_scale_factor: f32,
         allocator: A,
     ) -> Self {
-        const NODE_CAPACITY: usize = 1024;
+        const TREE_CAPACITY: usize = 1024;
+        const ID_NAMESPACE_STACK_CAPACITY: usize = 64;
 
         let a1 = allocator.clone();
         let a2 = allocator.clone();
         let a3 = allocator.clone();
         let a4 = allocator.clone();
+        let a5 = allocator.clone();
 
         let window_size = Vec2::new(window_width, window_height);
         let font_atlas = FontAtlas::new_in(
@@ -369,20 +372,21 @@ impl<A: Allocator + Clone> Ui<A> {
             layout_cache_content_size: Vec2::ZERO,
         };
 
-        let mut tree = Vec::with_capacity_in(NODE_CAPACITY, a2);
+        let mut tree = Vec::with_capacity_in(TREE_CAPACITY, a2);
         tree.push(root_ctrl.clone());
         tree.push(root_ctrl);
 
         Self {
             allocator,
 
-            draw_primitives: Vec::with_capacity_in(NODE_CAPACITY, a3),
-            draw_list: DrawList::with_capacity_in(NODE_CAPACITY, a4),
+            draw_primitives: Vec::with_capacity_in(TREE_CAPACITY, a3),
+            draw_list: DrawList::with_capacity_in(TREE_CAPACITY, a4),
 
             font_atlas,
             font_atlas_texture_id: 0,
 
             tree,
+            id_namespace_stack: Vec::with_capacity_in(ID_NAMESPACE_STACK_CAPACITY, a5),
 
             building_overlay: false,
             build_parent_idx: None,
@@ -1173,7 +1177,18 @@ pub struct Frame<'a, A: Allocator + Clone> {
 }
 
 impl<'a, A: Allocator + Clone> Frame<'a, A> {
-    pub fn push_ctrl(&mut self, id: u32) -> Ctrl<'_, A> {
+    pub fn push_id_namespace(&mut self, id: u32) {
+        self.ui.id_namespace_stack.push(id);
+    }
+
+    pub fn pop_id_namespace(&mut self) {
+        self.ui.id_namespace_stack.pop();
+    }
+
+    pub fn push_ctrl(&mut self, ctrl_id: u32) -> Ctrl<'_, A> {
+        let base_id = self.ui.id_namespace_stack.last().copied().unwrap_or(0);
+        let id = join_id(base_id, ctrl_id);
+
         // Push a control onto the tree. The control can either be completely
         // new, or already present in the tree from previous frame. Controls are
         // identified by their ID, which has to be unique among children of a
@@ -1968,4 +1983,11 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             }
         }
     }
+}
+
+fn join_id(id_base: u32, id_ctrl: u32) -> u64 {
+    let id_base_u64 = id_base as u64;
+    let id_ctrl_u64 = id_ctrl as u64;
+
+    id_base_u64 | id_ctrl_u64 << 32
 }
