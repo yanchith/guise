@@ -50,6 +50,7 @@ fn main() {
         width: initial_window_width,
         height: initial_window_height,
         present_mode: surface_present_mode,
+        alpha_mode: wgpu::CompositeAlphaMode::Auto,
     });
 
     let mut ui = {
@@ -341,6 +342,7 @@ fn main() {
                         width: window_width,
                         height: window_height,
                         present_mode: surface_present_mode,
+                        alpha_mode: wgpu::CompositeAlphaMode::Auto,
                     });
                 }
 

@@ -1,7 +1,6 @@
 #![no_std]
 #![feature(allocator_api)]
 #![feature(const_trait_impl)]
-#![feature(generic_associated_types)]
 #![allow(clippy::collapsible_if)] // tag: style
 #![allow(clippy::comparison_chain)] // tag: style
 #![allow(clippy::len_without_is_empty)] // tag: style
