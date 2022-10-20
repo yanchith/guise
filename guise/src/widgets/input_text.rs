@@ -98,6 +98,7 @@ where
     }
 }
 
+#[allow(clippy::type_complexity)]
 fn show<A, T>(
     frame: &mut Frame<A>,
     id: u32,

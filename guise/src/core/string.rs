@@ -4,9 +4,12 @@ use core::borrow::Borrow;
 use core::fmt;
 use core::hash::{Hash, Hasher};
 use core::ops::Deref;
-use core::str;
+use core::str::{self, FromStr};
 
 use arrayvec::ArrayVec;
+
+#[derive(Debug)]
+pub struct FromStrError;
 
 #[derive(Debug)]
 pub struct TextCapacityError;
@@ -19,10 +22,13 @@ pub struct TextCapacityError;
 // subslicing, char iteration, and char index iteration.
 pub trait TextStorage: Deref<Target = str> {
     fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
     fn get(&self, index: usize) -> char;
     fn set(&mut self, index: usize, c: char);
-    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError>;
     fn truncate(&mut self, new_len: usize);
+    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError>;
     fn try_splice(
         &mut self,
         index: usize,
@@ -39,7 +45,7 @@ impl<A: Allocator> AsciiVec<A> {
         Self(Vec::new_in(allocator))
     }
 
-    pub fn from_str_in(str: &str, allocator: A) -> Self {
+    pub fn from_ascii_str_in(str: &str, allocator: A) -> Self {
         assert!(str.is_ascii());
 
         let mut data = Vec::with_capacity_in(str.len(), allocator);
@@ -48,7 +54,7 @@ impl<A: Allocator> AsciiVec<A> {
         Self(data)
     }
 
-    pub fn from_bytes_in(bytes: &[u8], allocator: A) -> Self {
+    pub fn from_ascii_bytes_in(bytes: &[u8], allocator: A) -> Self {
         assert!(bytes.is_ascii());
 
         // <[u8]>::is_ascii should imply valid UTF-8
@@ -58,6 +64,68 @@ impl<A: Allocator> AsciiVec<A> {
         data.extend_from_slice(bytes);
 
         Self(data)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn get(&self, index: usize) -> char {
+        char::from(self.0[index])
+    }
+
+    pub fn set(&mut self, index: usize, c: char) {
+        assert!(c.is_ascii());
+        self.0[index] = c as u8;
+    }
+
+    pub fn truncate(&mut self, new_len: usize) {
+        self.0.truncate(new_len);
+    }
+
+    pub fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
+        assert!(s.is_ascii());
+        self.0.extend(s.as_bytes());
+
+        Ok(())
+    }
+
+    pub fn try_splice(
+        &mut self,
+        index: usize,
+        delete: usize,
+        insert: &str,
+    ) -> Result<(), TextCapacityError> {
+        let delete_count = delete;
+        let insert_count = insert.len();
+        let len = self.0.len();
+
+        assert!(index < len);
+        assert!(index < len + insert_count - delete_count);
+
+        if insert_count > delete_count {
+            let diff = insert_count - delete_count;
+
+            self.0.resize(len + diff, 0);
+            self.0.copy_within(index..len, index + diff);
+        }
+
+        if insert_count > 0 {
+            self.0[index..index + insert_count].copy_from_slice(insert.as_bytes());
+        }
+
+        if delete_count > insert_count {
+            let diff = delete_count - insert_count;
+
+            self.0.copy_within(index + diff..len, index);
+            self.truncate(len - diff);
+        }
+
+        Ok(())
     }
 
     pub fn clear(&mut self) {
@@ -122,63 +190,46 @@ impl<A: Allocator> fmt::Display for AsciiVec<A> {
     }
 }
 
+impl<A: Allocator> fmt::Write for AsciiVec<A> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.try_extend(s).map_err(|_| fmt::Error)
+    }
+}
+
 impl<A: Allocator> TextStorage for AsciiVec<A> {
+    #[inline]
     fn len(&self) -> usize {
-        self.0.len()
+        AsciiVec::len(self)
     }
 
+    #[inline]
     fn get(&self, index: usize) -> char {
-        char::from(self.0[index])
+        AsciiVec::get(self, index)
     }
 
+    #[inline]
     fn set(&mut self, index: usize, c: char) {
-        assert!(c.is_ascii());
-        self.0[index] = c as u8;
+        AsciiVec::set(self, index, c)
     }
 
-    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
-        assert!(s.is_ascii());
-        self.0.extend(s.as_bytes());
-
-        Ok(())
-    }
-
+    #[inline]
     fn truncate(&mut self, new_len: usize) {
-        self.0.truncate(new_len);
+        AsciiVec::truncate(self, new_len)
     }
 
+    #[inline]
+    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
+        AsciiVec::try_extend(self, s)
+    }
+
+    #[inline]
     fn try_splice(
         &mut self,
         index: usize,
         delete: usize,
         insert: &str,
     ) -> Result<(), TextCapacityError> {
-        let delete_count = delete;
-        let insert_count = insert.len();
-        let len = self.0.len();
-
-        assert!(index < len);
-        assert!(index < len + insert_count - delete_count);
-
-        if insert_count > delete_count {
-            let diff = insert_count - delete_count;
-
-            self.0.resize(len + diff, 0);
-            self.0.copy_within(index..len, index + diff);
-        }
-
-        if insert_count > 0 {
-            self.0[index..index + insert_count].copy_from_slice(insert.as_bytes());
-        }
-
-        if delete_count > insert_count {
-            let diff = delete_count - insert_count;
-
-            self.0.copy_within(index + diff..len, index);
-            self.truncate(len - diff);
-        }
-
-        Ok(())
+        AsciiVec::try_splice(self, index, delete, insert)
     }
 }
 
@@ -194,7 +245,7 @@ impl<const N: usize> AsciiArrayVec<N> {
         Self(ArrayVec::new())
     }
 
-    pub fn from_str(str: &str) -> Self {
+    pub fn from_ascii_str(str: &str) -> Self {
         assert!(str.is_ascii());
 
         let mut data: ArrayVec<u8, N> = ArrayVec::new();
@@ -203,7 +254,7 @@ impl<const N: usize> AsciiArrayVec<N> {
         Self(data)
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
+    pub fn from_ascii_bytes(bytes: &[u8]) -> Self {
         assert!(bytes.is_ascii());
 
         // <[u8]>::is_ascii should imply valid UTF-8
@@ -213,6 +264,80 @@ impl<const N: usize> AsciiArrayVec<N> {
         data.try_extend_from_slice(bytes).unwrap();
 
         Self(data)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn get(&self, index: usize) -> char {
+        char::from(self.0[index])
+    }
+
+    pub fn set(&mut self, index: usize, c: char) {
+        assert!(c.is_ascii());
+        self.0[index] = c as u8;
+    }
+
+    pub fn truncate(&mut self, new_len: usize) {
+        self.0.truncate(new_len);
+    }
+
+    pub fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
+        assert!(s.is_ascii());
+        self.0
+            .try_extend_from_slice(s.as_bytes())
+            .map_err(|_| TextCapacityError)
+    }
+
+    pub fn try_splice(
+        &mut self,
+        index: usize,
+        delete: usize,
+        insert: &str,
+    ) -> Result<(), TextCapacityError> {
+        let delete_count = delete;
+        let insert_count = insert.len();
+        let len = self.0.len();
+
+        assert!(index < len);
+        assert!(index < len + insert_count - delete_count);
+
+        if insert_count > delete_count {
+            let diff = insert_count - delete_count;
+
+            if len + diff > self.0.capacity() {
+                return Err(TextCapacityError);
+            }
+
+            // SAFETY: ArrayVec::set_len should be safe, because we immediately
+            // initialize the values afterwards (slice::copy_within) and never
+            // read the uninitialized parts of the slice, but what do I know.
+            //
+            // This is Vec::resize in the heap-allocated AsciiVec, but
+            // ArrayVec does not provide anything of the sort.
+            unsafe {
+                self.0.set_len(len + diff);
+            }
+            self.0.copy_within(index..len, index + diff);
+        }
+
+        if insert_count > 0 {
+            self.0[index..index + insert_count].copy_from_slice(insert.as_bytes());
+        }
+
+        if delete_count > insert_count {
+            let diff = delete_count - insert_count;
+
+            self.0.copy_within(index + diff..len, index);
+            self.truncate(len - diff);
+        }
+
+        Ok(())
     }
 
     pub fn clear(&mut self) {
@@ -276,74 +401,61 @@ impl<const N: usize> fmt::Display for AsciiArrayVec<N> {
     }
 }
 
+impl<const N: usize> FromStr for AsciiArrayVec<N> {
+    type Err = FromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !s.is_ascii() {
+            return Err(FromStrError);
+        }
+
+        if s.len() > N {
+            return Err(FromStrError);
+        }
+
+        Ok(AsciiArrayVec::from_ascii_str(s))
+    }
+}
+
+impl<const N: usize> fmt::Write for AsciiArrayVec<N> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.try_extend(s).map_err(|_| fmt::Error)
+    }
+}
+
 impl<const N: usize> TextStorage for AsciiArrayVec<N> {
+    #[inline]
     fn len(&self) -> usize {
-        self.0.len()
+        AsciiArrayVec::len(self)
     }
 
+    #[inline]
     fn get(&self, index: usize) -> char {
-        char::from(self.0[index])
+        AsciiArrayVec::get(self, index)
     }
 
+    #[inline]
     fn set(&mut self, index: usize, c: char) {
-        assert!(c.is_ascii());
-        self.0[index] = c as u8;
+        AsciiArrayVec::set(self, index, c)
     }
 
-    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
-        assert!(s.is_ascii());
-        self.0
-            .try_extend_from_slice(s.as_bytes())
-            .map_err(|_| TextCapacityError)
-    }
-
+    #[inline]
     fn truncate(&mut self, new_len: usize) {
-        self.0.truncate(new_len);
+        AsciiArrayVec::truncate(self, new_len)
     }
 
+    #[inline]
+    fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
+        AsciiArrayVec::try_extend(self, s)
+    }
+
+    #[inline]
     fn try_splice(
         &mut self,
         index: usize,
         delete: usize,
         insert: &str,
     ) -> Result<(), TextCapacityError> {
-        let delete_count = delete;
-        let insert_count = insert.len();
-        let len = self.0.len();
-
-        assert!(index < len);
-        assert!(index < len + insert_count - delete_count);
-
-        if insert_count > delete_count {
-            let diff = insert_count - delete_count;
-
-            if len + diff > self.0.capacity() {
-                return Err(TextCapacityError);
-            }
-
-            // SAFETY: ArrayVec::set_len should be safe, because we immediately
-            // initialize the values afterwards (slice::copy_within) and never
-            // read the uninitialized parts of the slice, but what do I know.
-            //
-            // This is Vec::resize in the heap-allocated AsciiVec, but
-            // ArrayVec does not provide anything of the sort.
-            unsafe {
-                self.0.set_len(len + diff);
-            }
-            self.0.copy_within(index..len, index + diff);
-        }
-
-        if insert_count > 0 {
-            self.0[index..index + insert_count].copy_from_slice(insert.as_bytes());
-        }
-
-        if delete_count > insert_count {
-            let diff = delete_count - insert_count;
-
-            self.0.copy_within(index + diff..len, index);
-            self.truncate(len - diff);
-        }
-
-        Ok(())
+        AsciiArrayVec::try_splice(self, index, delete, insert)
     }
 }

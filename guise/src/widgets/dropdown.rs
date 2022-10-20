@@ -272,5 +272,5 @@ fn open(state: &CtrlState) -> bool {
 }
 
 fn set_open(state: &mut CtrlState, open: bool) {
-    state[0] = if open { 1 } else { 0 }
+    state[0] = u8::from(open)
 }

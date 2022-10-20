@@ -320,7 +320,7 @@ fn show<A: Allocator + Clone>(
     );
 
     let mut changed = false;
-    for i in 0..value_mut.len() {
+    for (i, value_mut_slot) in value_mut.iter_mut().enumerate() {
         let mut inner_ctrl = frame.push_ctrl(cast_u32(i));
         inner_ctrl.set_flags(CtrlFlags::CAPTURE_HOVER);
         inner_ctrl.set_layout(Layout::Vertical);
@@ -350,18 +350,18 @@ fn show<A: Allocator + Clone>(
                 true
             };
 
-            let old_value = value_mut[i];
+            let old_value = *value_mut_slot;
             let new_value = i32::min(
                 i32::max(libm::roundf(value as f32 + delta * speed) as i32, min),
                 max,
             );
 
-            value_mut[i] = new_value;
+            *value_mut_slot = new_value;
             (new_active, old_value != new_value)
         } else if hovered && inputs_pressed == Inputs::MB_LEFT {
             inner_ctrl.set_active(true);
             let state = inner_ctrl.state_mut();
-            set_value(state, value_mut[i]);
+            set_value(state, *value_mut_slot);
             set_x(state, cursor_position.x);
             (true, false)
         } else {
@@ -397,7 +397,7 @@ fn show<A: Allocator + Clone>(
         inner_ctrl.set_draw_self_background_color(background_color);
 
         s.clear();
-        let _ = write!(s, "{}", value_mut[i]);
+        let _ = write!(s, "{}", value_mut_slot);
         inner_ctrl.draw_text(
             true,
             None,

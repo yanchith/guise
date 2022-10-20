@@ -417,5 +417,5 @@ fn set_activity(state: &mut CtrlState, activity: u8) {
 }
 
 fn set_initialized(state: &mut CtrlState, initialized: bool) {
-    state[33] = if initialized { 1 } else { 0 }
+    state[33] = u8::from(initialized)
 }
