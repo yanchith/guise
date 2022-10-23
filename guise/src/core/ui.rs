@@ -1186,6 +1186,9 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
     }
 
     pub fn push_ctrl(&mut self, ctrl_id: u32) -> Ctrl<'_, A> {
+        // TODO(yan): @Bug @Correctness We need to include every id in the
+        // namespace stack, otherwise they just overwrite each other. One way to
+        // do this would be hashing.
         let base_id = self.ui.id_namespace_stack.last().copied().unwrap_or(0);
         let id = join_id(base_id, ctrl_id);
 
