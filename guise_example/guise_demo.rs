@@ -394,7 +394,7 @@ pub fn draw_ui<A: Allocator + Clone>(
         }
 
         {
-            let mut window_ctrl = guise::Window::new(line!(), "5%", "80%", "90%", "15%")
+            let mut window_ctrl = guise::Window::new(line!(), 10.0, "80%", -20.0, "15%")
                 .set_movable(false)
                 .set_resizable(false)
                 .begin(frame);

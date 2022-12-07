@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(allocator_api)]
+#![feature(const_float_classify)]
 #![feature(const_trait_impl)]
 // Disabled style lints
 #![allow(clippy::collapsible_if)]

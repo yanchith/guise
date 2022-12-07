@@ -2,7 +2,7 @@ use core::alloc::Allocator;
 use core::fmt::Debug;
 
 use crate::core::{Ctrl, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Vec2};
-use crate::widgets::size::Size;
+use crate::widgets::size::{Position, Size};
 use crate::widgets::theme::Theme;
 
 const FLAGS: CtrlFlags =
@@ -22,12 +22,12 @@ pub fn begin_window<'f, X, Y, W, H, A>(
     height: H,
 ) -> Ctrl<'f, A>
 where
-    X: TryInto<Size>,
-    Y: TryInto<Size>,
+    X: TryInto<Position>,
+    Y: TryInto<Position>,
     W: TryInto<Size>,
     H: TryInto<Size>,
-    <X as TryInto<Size>>::Error: Debug,
-    <Y as TryInto<Size>>::Error: Debug,
+    <X as TryInto<Position>>::Error: Debug,
+    <Y as TryInto<Position>>::Error: Debug,
     <W as TryInto<Size>>::Error: Debug,
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
@@ -41,8 +41,8 @@ pub fn end_window<A: Allocator + Clone>(frame: &mut Frame<A>) {
 
 pub struct Window<'a> {
     id: u32,
-    x: Size,
-    y: Size,
+    x: Position,
+    y: Position,
     width: Size,
     height: Size,
 
@@ -58,12 +58,12 @@ pub struct Window<'a> {
 impl<'a> Window<'a> {
     pub fn new<X, Y, W, H>(id: u32, x: X, y: Y, width: W, height: H) -> Self
     where
-        X: TryInto<Size>,
-        Y: TryInto<Size>,
+        X: TryInto<Position>,
+        Y: TryInto<Position>,
         W: TryInto<Size>,
         H: TryInto<Size>,
-        <X as TryInto<Size>>::Error: Debug,
-        <Y as TryInto<Size>>::Error: Debug,
+        <X as TryInto<Position>>::Error: Debug,
+        <Y as TryInto<Position>>::Error: Debug,
         <W as TryInto<Size>>::Error: Debug,
         <H as TryInto<Size>>::Error: Debug,
     {
