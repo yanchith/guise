@@ -74,7 +74,7 @@ where
     }
 
     #[inline]
-    fn show<A>(&mut self, frame: &mut Frame<A>) -> bool
+    pub fn show<A>(&mut self, frame: &mut Frame<A>) -> bool
     where
         A: Allocator + Clone,
     {
@@ -82,7 +82,7 @@ where
     }
 
     #[inline]
-    fn show_with_callback<A, C>(&mut self, frame: &mut Frame<A>, mut callback: C) -> bool
+    pub fn show_with_callback<A, C>(&mut self, frame: &mut Frame<A>, mut callback: C) -> bool
     where
         A: Allocator + Clone,
         C: FnMut(&InputTextCallbackData, &mut T),
