@@ -82,7 +82,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
         let cursor_position = frame.cursor_position();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
 
-        let outer_width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
+        let outer_width = f32::max(0.0, parent_size.x - 2.0 * self.theme.dropdown_margin);
         let label_width = LABEL_WIDTH_RATIO * outer_width;
         let inner_width = f32::max(0.0, outer_width - label_width - LABEL_SPACING);
 
