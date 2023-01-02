@@ -1,7 +1,7 @@
 use core::alloc::Allocator;
 use core::fmt::Debug;
 
-use crate::core::{Ctrl, CtrlFlags, Frame, Layout, Rect};
+use crate::core::{Align, Ctrl, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::size::Size;
 use crate::widgets::theme::Theme;
 
@@ -10,6 +10,7 @@ pub fn begin_panel<'f, W, H, A>(
     id: u32,
     width: W,
     height: H,
+    label: &str,
 ) -> Ctrl<'f, A>
 where
     W: TryInto<Size>,
@@ -18,11 +19,12 @@ where
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
 {
-    Panel::new(id, width, height).begin(frame)
+    Panel::new(id, width, height, label).begin(frame)
 }
 
 // TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
 pub fn end_panel<A: Allocator + Clone>(frame: &mut Frame<A>) {
+    frame.pop_ctrl();
     frame.pop_ctrl();
 }
 
@@ -30,17 +32,19 @@ pub struct Panel<'a> {
     id: u32,
     width: Size,
     height: Size,
+    label: &'a str,
 
     resize_height_to_fit_content: bool,
     layout: Layout,
     draw_padding: bool,
     draw_border: bool,
+    draw_header: bool,
 
     theme: &'a Theme,
 }
 
 impl<'a> Panel<'a> {
-    pub fn new<W, H>(id: u32, width: W, height: H) -> Self
+    pub fn new<W, H>(id: u32, width: W, height: H, label: &'a str) -> Self
     where
         W: TryInto<Size>,
         H: TryInto<Size>,
@@ -54,11 +58,13 @@ impl<'a> Panel<'a> {
             id,
             width,
             height,
+            label,
 
             resize_height_to_fit_content: false,
             layout: Layout::Vertical,
             draw_padding: true,
             draw_border: true,
+            draw_header: true,
 
             theme: &Theme::DEFAULT,
         }
@@ -74,15 +80,20 @@ impl<'a> Panel<'a> {
         self
     }
 
-    // NB: This is a shorthand for setting the padding-width to zero in theme.
+    // This is a shorthand for setting the padding-width to zero in theme.
     pub fn set_draw_padding(&mut self, draw_padding: bool) -> &mut Self {
         self.draw_padding = draw_padding;
         self
     }
 
-    // NB: This is a shorthand for setting the border-width to zero in theme.
+    // This is a shorthand for setting the border-width to zero in theme.
     pub fn set_draw_border(&mut self, draw_border: bool) -> &mut Self {
         self.draw_border = draw_border;
+        self
+    }
+
+    pub fn set_draw_header(&mut self, draw_header: bool) -> &mut Self {
+        self.draw_header = draw_header;
         self
     }
 
@@ -93,41 +104,106 @@ impl<'a> Panel<'a> {
 
     pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
         let parent_size = frame.ctrl_inner_size();
-        let flags = if self.resize_height_to_fit_content {
+        let outer_flags = if self.resize_height_to_fit_content {
+            CtrlFlags::RESIZE_TO_FIT_VERTICAL
+        } else {
+            CtrlFlags::NONE
+        };
+        let body_flags = if self.resize_height_to_fit_content {
             CtrlFlags::CAPTURE_SCROLL | CtrlFlags::RESIZE_TO_FIT_VERTICAL
         } else {
             CtrlFlags::CAPTURE_SCROLL
         };
 
-        let mut ctrl = frame.push_ctrl(self.id);
-        ctrl.set_flags(flags);
-        ctrl.set_layout(self.layout);
-        ctrl.set_rect(Rect::new(
+        let mut outer_ctrl = frame.push_ctrl(self.id);
+        outer_ctrl.set_flags(outer_flags);
+        outer_ctrl.set_layout(Layout::Vertical);
+        outer_ctrl.set_rect(Rect::new(
             0.0,
             0.0,
             self.width.resolve(parent_size.x),
             self.height.resolve(parent_size.y),
         ));
-        ctrl.set_padding(if self.draw_padding {
+
+        outer_ctrl.set_padding(if self.draw_padding {
             self.theme.panel_padding
         } else {
             0.0
         });
-        ctrl.set_border(if self.draw_border {
+        outer_ctrl.set_border(if self.draw_border {
             self.theme.panel_border
         } else {
             0.0
         });
-        ctrl.set_margin(0.0);
+        outer_ctrl.set_margin(0.0);
 
-        ctrl.set_draw_self(true);
-        ctrl.set_draw_self_border_color(self.theme.panel_border_color);
-        ctrl.set_draw_self_background_color(self.theme.panel_background_color);
+        if self.draw_border {
+            outer_ctrl.set_draw_self(true);
+            outer_ctrl.set_draw_self_border_color(self.theme.panel_border_color);
+        }
 
-        ctrl
+        if self.draw_header {
+            let mut header_ctrl = frame.push_ctrl(0);
+            header_ctrl.set_flags(CtrlFlags::NONE);
+            header_ctrl.set_layout(Layout::Free);
+            header_ctrl.set_rect(Rect::new(
+                0.0,
+                0.0,
+                self.width.resolve(parent_size.x),
+                self.theme.panel_header_height,
+            ));
+            header_ctrl.set_padding(0.0);
+            header_ctrl.set_border(0.0);
+            header_ctrl.set_margin(0.0);
+
+            header_ctrl.set_draw_self(true);
+            header_ctrl.set_draw_self_background_color(self.theme.panel_header_background_color);
+
+            if self.label.len() > 0 {
+                header_ctrl.draw_text(
+                    true,
+                    None,
+                    0.0,
+                    self.label,
+                    Align::Center,
+                    Align::Center,
+                    Wrap::Word,
+                    self.theme.panel_header_text_color,
+                );
+            }
+
+            frame.pop_ctrl();
+        }
+
+        let mut body_ctrl = frame.push_ctrl(1);
+        body_ctrl.set_flags(body_flags);
+        body_ctrl.set_layout(self.layout);
+        body_ctrl.set_rect(Rect::new(
+            0.0,
+            0.0,
+            self.width.resolve(parent_size.x),
+            if self.draw_header {
+                f32::max(
+                    0.0,
+                    self.height.resolve(parent_size.y) - self.theme.panel_header_height,
+                )
+            } else {
+                self.height.resolve(parent_size.y)
+            },
+        ));
+        body_ctrl.set_padding(0.0);
+        body_ctrl.set_border(0.0);
+        body_ctrl.set_margin(0.0);
+
+        body_ctrl.set_draw_self(true);
+        body_ctrl.set_draw_self_border_color(self.theme.panel_border_color);
+        body_ctrl.set_draw_self_background_color(self.theme.panel_background_color);
+
+        body_ctrl
     }
 
     pub fn end<A: Allocator + Clone>(&self, frame: &mut Frame<A>) {
+        frame.pop_ctrl();
         frame.pop_ctrl();
     }
 }

@@ -1,3 +1,7 @@
+// TODO(yan): Split theme into themes for each component, so that when the user
+// wants to edit something in the theme, they don't have to copy the whole
+// struct.
+
 // TODO(yan): Values for margin, border and padding could be split into
 // horizontal and vertical, or even per rect side, but only do that if it is
 // actually useful as it otherwise takes a lot of space in the Ctrl struct.
@@ -108,6 +112,9 @@ pub struct Theme {
     pub panel_background_color: u32,
     pub panel_border: f32,
     pub panel_padding: f32,
+    pub panel_header_text_color: u32,
+    pub panel_header_background_color: u32,
+    pub panel_header_height: f32,
 
     pub window_border_color: u32,
     pub window_border_color_hovered: u32,
@@ -125,6 +132,7 @@ const TRANSPARENT: u32 = 0xffffff00;
 
 const WINDOW_BACKGROUND_COLOR: u32 = 0x080808fa;
 const WINDOW_BORDER_COLOR: u32 = 0x202020ff;
+const WINDOW_HEADER_BACKGROUND_COLOR: u32 = 0x202080fa;
 
 const BORDER_COLOR: u32 = 0x202020ff;
 const BORDER_COLOR_HOVERED: u32 = 0x303030ff;
@@ -135,6 +143,7 @@ const BACKGROUND_COLOR_HOVERED: u32 = 0x101010fa;
 const BACKGROUND_COLOR_ACTIVE: u32 = 0x151515fa;
 
 const TEXT_COLOR: u32 = 0xd0d0d0ff;
+const TEXT_COLOR_HEADER: u32 = 0xf0f0f0ff;
 
 impl Theme {
     pub const DEFAULT: Self = Self {
@@ -147,7 +156,7 @@ impl Theme {
         button_text_color: TEXT_COLOR,
         button_text_color_hovered: TEXT_COLOR,
         button_text_color_active: TEXT_COLOR,
-        button_height: 40.0,
+        button_height: 30.0,
         button_margin: 2.0,
         button_border: 1.0,
 
@@ -157,8 +166,8 @@ impl Theme {
         image_button_background_color: BACKGROUND_COLOR,
         image_button_background_color_hovered: BACKGROUND_COLOR_HOVERED,
         image_button_background_color_active: BACKGROUND_COLOR_ACTIVE,
-        image_button_width: 40.0,
-        image_button_height: 40.0,
+        image_button_width: 30.0,
+        image_button_height: 30.0,
         image_button_margin: 2.0,
         image_button_border: 1.0,
 
@@ -169,7 +178,7 @@ impl Theme {
         checkbox_text_color_hovered: TEXT_COLOR,
         checkbox_text_color_active: TEXT_COLOR,
         checkbox_width: 250.0,
-        checkbox_height: 40.0,
+        checkbox_height: 30.0,
         checkbox_margin: 2.0,
         checkbox_border: 1.0,
 
@@ -195,7 +204,7 @@ impl Theme {
         input_text_text_color: TEXT_COLOR,
         input_text_text_color_hovered: TEXT_COLOR,
         input_text_text_color_active: TEXT_COLOR,
-        input_text_height: 40.0,
+        input_text_height: 30.0,
         input_text_margin: 2.0,
         input_text_border: 1.0,
 
@@ -208,7 +217,7 @@ impl Theme {
         drag_float_text_color: TEXT_COLOR,
         drag_float_text_color_hovered: TEXT_COLOR,
         drag_float_text_color_active: TEXT_COLOR,
-        drag_float_height: 40.0,
+        drag_float_height: 30.0,
         drag_float_margin: 2.0,
         drag_float_border: 1.0,
 
@@ -221,7 +230,7 @@ impl Theme {
         drag_int_text_color: TEXT_COLOR,
         drag_int_text_color_hovered: TEXT_COLOR,
         drag_int_text_color_active: TEXT_COLOR,
-        drag_int_height: 40.0,
+        drag_int_height: 30.0,
         drag_int_margin: 2.0,
         drag_int_border: 1.0,
 
@@ -234,7 +243,7 @@ impl Theme {
         dropdown_text_color: TEXT_COLOR,
         dropdown_text_color_hovered: TEXT_COLOR,
         dropdown_text_color_active: TEXT_COLOR,
-        dropdown_height: 40.0,
+        dropdown_height: 30.0,
         dropdown_overlay_max_height: 400.0,
         dropdown_margin: 2.0,
         dropdown_border: 1.0,
@@ -242,7 +251,10 @@ impl Theme {
         panel_border_color: TRANSPARENT,
         panel_background_color: TRANSPARENT,
         panel_border: 0.0,
-        panel_padding: 0.0,
+        panel_padding: 5.0,
+        panel_header_text_color: TEXT_COLOR_HEADER,
+        panel_header_background_color: WINDOW_HEADER_BACKGROUND_COLOR,
+        panel_header_height: 20.0,
 
         window_border_color: BORDER_COLOR,
         window_border_color_hovered: WINDOW_BORDER_COLOR,

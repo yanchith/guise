@@ -77,14 +77,13 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::begin_window(frame, line!(), "41%", "1%", "58%", "98%");
 
         {
-            guise::Panel::new(line!(), "100%", "48%")
+            guise::Panel::new(line!(), "100%", "48%", "Panel header text")
                 .set_layout(guise::Layout::Horizontal)
                 .set_draw_padding(false)
                 .begin(frame);
 
             {
-                guise::Panel::new(line!(), "50%", "100%")
-                    .set_draw_padding(false)
+                guise::Panel::new(line!(), "50%", "100%", "System")
                     .set_draw_border(false)
                     .begin(frame);
 
@@ -136,9 +135,8 @@ pub fn draw_ui<A: Allocator + Clone>(
             }
 
             {
-                guise::Panel::new(line!(), "50%", "100%")
+                guise::Panel::new(line!(), "50%", "100%", "A few buttons for your consideration")
                     .set_resize_height_to_fit_content(true)
-                    .set_draw_padding(false)
                     .set_draw_border(false)
                     .begin(frame);
 
@@ -150,14 +148,14 @@ pub fn draw_ui<A: Allocator + Clone>(
                     state.button_click_count += 1;
                 }
 
-                if guise::Button::new(line!(), "A button with multiline text.\n And a footnote.")
+                if guise::Button::new(line!(), "A button with tooltip")
                     .set_tooltip(TEXT)
                     .show(frame)
                 {
                     state.button_click_count += 1;
                 }
 
-                for i in 0..=20 {
+                for i in 0..=10 {
                     frame.push_id_namespace(i);
                     if guise::button(frame, line!(), fmt!(s, "Button {}", i)) {
                         state.button_click_count += 1;
@@ -174,14 +172,14 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::separator(frame, line!());
 
         {
-            guise::Panel::new(line!(), "100%", "48%")
+            guise::Panel::new(line!(), "100%", "48%", "Another panel header text")
                 .set_layout(guise::Layout::Horizontal)
                 .set_draw_padding(false)
+                .set_draw_header(false)
                 .begin(frame);
 
             {
-                guise::Panel::new(line!(), "50%", "100%")
-                    .set_draw_padding(false)
+                guise::Panel::new(line!(), "50%", "100%", "Drawing Text")
                     .set_draw_border(false)
                     .begin(frame);
 
@@ -205,9 +203,9 @@ pub fn draw_ui<A: Allocator + Clone>(
             }
 
             {
-                let mut panel_ctrl = guise::Panel::new(line!(), "50%", "100%")
-                    .set_draw_padding(false)
+                let mut panel_ctrl = guise::Panel::new(line!(), "50%", "100%", "Drawing Graphs")
                     .set_draw_border(false)
+                    .set_draw_header(true)
                     .begin(frame);
 
                 let size = panel_ctrl.inner_size();
@@ -543,7 +541,7 @@ pub fn draw_ui<A: Allocator + Clone>(
 
     {
         guise::begin_window(frame, line!(), "1%", "1%", 350.0, 300.0);
-        guise::Panel::new(line!(), "100%", "100%")
+        guise::Panel::new(line!(), "100%", "100%", "RESIZE_TO_FIT test")
             .set_resize_height_to_fit_content(true)
             .begin(frame);
 
@@ -552,8 +550,6 @@ pub fn draw_ui<A: Allocator + Clone>(
         // the RESIZE_TO_FIT_VERTICAL flag. It works properly if the height is
         // large enough to contain everything from the start and then shrinks
         // becuase of RESIZE_TO_FIT_VERTICAL.
-        guise::text(frame, line!(), "This is a test for RESIZE_TO_FIT flags");
-
         guise::button(frame, line!(), "Hello");
         guise::text(frame, line!(), "Can you see me?");
         guise::button(frame, line!(), "Bye");
