@@ -22,9 +22,6 @@ use crate::widgets::theme::Theme;
 // }
 //
 
-const LABEL_WIDTH_RATIO: f32 = 0.35;
-const LABEL_SPACING: f32 = 5.0;
-
 pub fn dropdown<T, A>(
     frame: &mut Frame<A>,
     id: u32,
@@ -82,44 +79,22 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
         let cursor_position = frame.cursor_position();
         let lmb_pressed = frame.inputs_pressed() == Inputs::MB_LEFT;
 
-        let outer_width = f32::max(0.0, parent_size.x - 2.0 * self.theme.input_text_margin);
-        let label_width = LABEL_WIDTH_RATIO * outer_width;
-        let inner_width = f32::max(0.0, outer_width - label_width - LABEL_SPACING);
+        let width = f32::max(0.0, parent_size.x - 2.0 * self.theme.dropdown_margin);
 
-        let mut outer_ctrl = frame.push_ctrl(self.id);
-        outer_ctrl.set_flags(CtrlFlags::NONE);
-        outer_ctrl.set_layout(Layout::Horizontal);
-        outer_ctrl.set_rect(Rect::new(0.0, 0.0, outer_width, self.theme.dropdown_height));
-        outer_ctrl.set_padding(0.0);
-        outer_ctrl.set_border(0.0);
-        outer_ctrl.set_margin(self.theme.dropdown_margin);
-
-        outer_ctrl.set_draw_self(false);
-        outer_ctrl.draw_text(
-            true,
-            Some(Rect::new(0.0, 0.0, label_width, self.theme.dropdown_height)),
+        let mut ctrl = frame.push_ctrl(self.id);
+        ctrl.set_flags(CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE);
+        ctrl.set_layout(Layout::Vertical);
+        ctrl.set_rect(Rect::new(
             0.0,
-            self.label,
-            Align::Start,
-            Align::Center,
-            Wrap::Word,
-            self.theme.dropdown_text_color,
-        );
-
-        let mut active_area_ctrl = frame.push_ctrl(0);
-        active_area_ctrl.set_flags(CtrlFlags::CAPTURE_HOVER | CtrlFlags::CAPTURE_ACTIVE);
-        active_area_ctrl.set_layout(Layout::Vertical);
-        active_area_ctrl.set_rect(Rect::new(
-            label_width + LABEL_SPACING,
             0.0,
-            inner_width,
+            width,
             self.theme.dropdown_height,
         ));
-        active_area_ctrl.set_padding(0.0);
-        active_area_ctrl.set_border(self.theme.dropdown_border);
-        active_area_ctrl.set_margin(0.0);
+        ctrl.set_padding(0.0);
+        ctrl.set_border(self.theme.dropdown_border);
+        ctrl.set_margin(self.theme.dropdown_margin);
 
-        let absolute_position = active_area_ctrl.absolute_position();
+        let absolute_position = ctrl.absolute_position();
 
         let overlay_y = absolute_position.y + self.theme.dropdown_height + OVERLAY_SPACING;
 
@@ -136,7 +111,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
                 Rect::new(
                     absolute_position.x,
                     overlay_y,
-                    inner_width,
+                    width,
                     available_height_down,
                 )
             } else {
@@ -144,7 +119,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
                 Rect::new(
                     absolute_position.x,
                     absolute_position.y - height - OVERLAY_SPACING,
-                    inner_width,
+                    width,
                     height,
                 )
             }
@@ -152,28 +127,28 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             Rect::new(
                 absolute_position.x,
                 overlay_y,
-                inner_width,
+                width,
                 overlay_height_requested,
             )
         };
 
-        let hovered = active_area_ctrl.is_hovered();
-        let mut active = active_area_ctrl.is_active();
+        let hovered = ctrl.is_hovered();
+        let mut active = ctrl.is_active();
 
-        let state = active_area_ctrl.state_mut();
+        let state = ctrl.state_mut();
         let mut open = open(state);
 
         if lmb_pressed {
             if open {
                 if !overlay_rect.contains_point(cursor_position) {
                     set_open(state, false);
-                    active_area_ctrl.set_active(false);
+                    ctrl.set_active(false);
                     active = false;
                     open = false;
                 }
             } else if hovered {
                 set_open(state, true);
-                active_area_ctrl.set_active(true);
+                ctrl.set_active(true);
                 active = true;
                 open = true;
             }
@@ -197,17 +172,17 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             ),
         };
 
-        active_area_ctrl.set_draw_self(true);
-        active_area_ctrl.set_draw_self_border_color(border_color);
-        active_area_ctrl.set_draw_self_background_color(background_color);
+        ctrl.set_draw_self(true);
+        ctrl.set_draw_self_border_color(border_color);
+        ctrl.set_draw_self_background_color(background_color);
 
         let label = if let Some(selected) = self.selected {
             self.options[*selected].as_ref()
         } else {
-            ""
+            self.label
         };
 
-        active_area_ctrl.draw_text(
+        ctrl.draw_text(
             false,
             None,
             0.0,
@@ -260,7 +235,6 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             set_open(frame.ctrl_state_mut(), false);
         }
 
-        frame.pop_ctrl();
         frame.pop_ctrl();
 
         changed
