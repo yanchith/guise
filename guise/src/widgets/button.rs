@@ -142,9 +142,6 @@ impl<'a> Button<'a> {
             )
         } else {
             ctrl.draw_text(
-                false,
-                None,
-                0.0,
                 self.label,
                 Align::Center,
                 Align::Center,

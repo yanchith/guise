@@ -119,20 +119,18 @@ impl<'a> Checkbox<'a> {
             );
         }
 
-        ctrl.draw_text(
-            false,
-            Some(Rect::new(
-                40.0,
-                0.0,
-                f32::max(width - 40.0, 0.0),
-                self.theme.checkbox_height,
-            )),
-            0.0,
+        ctrl.draw_text_fitted(
             self.label,
             Align::Start,
             Align::Center,
             Wrap::Word,
             text_color,
+            Rect::new(
+                40.0,
+                0.0,
+                f32::max(width - 40.0, 0.0),
+                self.theme.checkbox_height,
+            ),
         );
 
         frame.pop_ctrl();

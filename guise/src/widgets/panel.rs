@@ -161,9 +161,6 @@ impl<'a> Panel<'a> {
 
             if self.label.len() > 0 {
                 header_ctrl.draw_text(
-                    true,
-                    None,
-                    0.0,
                     self.label,
                     Align::Center,
                     Align::Center,

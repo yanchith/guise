@@ -59,16 +59,14 @@ impl<'a> Text<'a> {
         ctrl.set_draw_self(true);
         ctrl.set_draw_self_border_color(self.theme.text_border_color);
         ctrl.set_draw_self_background_color(self.theme.text_background_color);
-        ctrl.draw_text(
-            true,
-            None,
-            border + padding,
+        ctrl.draw_text_inset_and_extend_content_rect(
             self.text,
             self.horizontal_align,
             // Vertical align does not make sense with shrunk-to-fit controls.
             Align::Start,
             Wrap::Word,
             self.theme.text_text_color,
+            border + padding,
         );
 
         frame.pop_ctrl();

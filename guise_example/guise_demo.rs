@@ -135,10 +135,15 @@ pub fn draw_ui<A: Allocator + Clone>(
             }
 
             {
-                guise::Panel::new(line!(), "50%", "100%", "A few buttons for your consideration")
-                    .set_resize_height_to_fit_content(true)
-                    .set_draw_border(false)
-                    .begin(frame);
+                guise::Panel::new(
+                    line!(),
+                    "50%",
+                    "100%",
+                    "A few buttons for your consideration",
+                )
+                .set_resize_height_to_fit_content(true)
+                .set_draw_border(false)
+                .begin(frame);
 
                 if guise::Button::new(line!(), "<image>")
                     .set_image(0)
@@ -362,9 +367,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                 .set_resizable(false)
                 .begin(frame);
             window_ctrl.draw_text(
-                false,
-                None,
-                0.0,
                 "This window not resizable",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -379,9 +381,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                 .set_movable(false)
                 .begin(frame);
             window_ctrl.draw_text(
-                false,
-                None,
-                0.0,
                 "This window is not movable",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -397,9 +396,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                 .set_resizable(false)
                 .begin(frame);
             window_ctrl.draw_text(
-                false,
-                None,
-                0.0,
                 "This window is neither movable nor resizable",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -412,9 +408,6 @@ pub fn draw_ui<A: Allocator + Clone>(
         {
             let mut window_ctrl = guise::begin_window(frame, line!(), 20.0, 160.0, 200.0, 60.0);
             window_ctrl.draw_text(
-                false,
-                None,
-                0.0,
                 "「こんにちは 世界」",
                 guise::Align::Center,
                 guise::Align::Center,
@@ -466,10 +459,10 @@ pub fn draw_ui<A: Allocator + Clone>(
             line!(),
             &mut state.input_text_heap,
             "Heap String",
-            |data, _| match data.submit {
-                guise::InputTextSubmit::None => (),
-                guise::InputTextSubmit::Submit => state.input_text_submit_count += 1,
-                guise::InputTextSubmit::Cancel => state.input_text_cancel_count += 1,
+            |data, _| match data.action {
+                guise::InputTextAction::None => (),
+                guise::InputTextAction::Submit => state.input_text_submit_count += 1,
+                guise::InputTextAction::Cancel => state.input_text_cancel_count += 1,
             },
         );
 
@@ -478,10 +471,10 @@ pub fn draw_ui<A: Allocator + Clone>(
             line!(),
             &mut state.input_text_inline,
             "Stack String",
-            |data, _| match data.submit {
-                guise::InputTextSubmit::None => (),
-                guise::InputTextSubmit::Submit => state.input_text_submit_count += 1,
-                guise::InputTextSubmit::Cancel => state.input_text_cancel_count += 1,
+            |data, _| match data.action {
+                guise::InputTextAction::None => (),
+                guise::InputTextAction::Submit => state.input_text_submit_count += 1,
+                guise::InputTextAction::Cancel => state.input_text_cancel_count += 1,
             },
         );
 

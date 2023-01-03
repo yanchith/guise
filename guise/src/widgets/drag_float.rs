@@ -362,15 +362,13 @@ fn show<A: Allocator + Clone>(
     outer_ctrl.set_margin(theme.drag_float_margin);
 
     outer_ctrl.set_draw_self(false);
-    outer_ctrl.draw_text(
-        true,
-        Some(Rect::new(0.0, 0.0, label_width, theme.drag_float_height)),
-        0.0,
+    outer_ctrl.draw_text_fitted(
         label,
         Align::Start,
         Align::Center,
         Wrap::Word,
         theme.drag_float_text_color,
+        Rect::new(0.0, 0.0, label_width, theme.drag_float_height),
     );
 
     let mut changed = false;
@@ -449,16 +447,7 @@ fn show<A: Allocator + Clone>(
 
         s.clear();
         let _ = write!(s, "{:.1$}", value_mut_slot, usize::from(display_precision));
-        inner_ctrl.draw_text(
-            true,
-            None,
-            0.0,
-            &s,
-            Align::Center,
-            Align::Center,
-            Wrap::Word,
-            text_color,
-        );
+        inner_ctrl.draw_text(&s, Align::Center, Align::Center, Wrap::Word, text_color);
 
         frame.pop_ctrl();
     }

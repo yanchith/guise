@@ -95,15 +95,13 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
         outer_ctrl.set_margin(self.theme.dropdown_margin);
 
         outer_ctrl.set_draw_self(false);
-        outer_ctrl.draw_text(
-            true,
-            Some(Rect::new(0.0, 0.0, label_width, self.theme.dropdown_height)),
-            0.0,
+        outer_ctrl.draw_text_fitted(
             self.label,
             Align::Start,
             Align::Center,
             Wrap::Word,
             self.theme.dropdown_text_color,
+            Rect::new(0.0, 0.0, label_width, self.theme.dropdown_height),
         );
 
         let mut active_area_ctrl = frame.push_ctrl(0);
@@ -207,16 +205,7 @@ impl<'a, T: AsRef<str>> Dropdown<'a, T> {
             ""
         };
 
-        active_area_ctrl.draw_text(
-            false,
-            None,
-            0.0,
-            label,
-            Align::Center,
-            Align::Center,
-            Wrap::Word,
-            text_color,
-        );
+        active_area_ctrl.draw_text(label, Align::Center, Align::Center, Wrap::Word, text_color);
 
         let mut changed = false;
 

@@ -1,4 +1,5 @@
 use core::alloc::Allocator;
+use core::mem;
 
 use arrayvec::ArrayString;
 
@@ -13,11 +14,11 @@ const LABEL_SPACING: f32 = 5.0;
 pub struct InputTextCallbackData {
     pub active: bool,
     pub changed: bool,
-    pub submit: InputTextSubmit,
+    pub action: InputTextAction,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum InputTextSubmit {
+pub enum InputTextAction {
     None,
     Submit,
     Cancel,
@@ -129,15 +130,13 @@ where
     outer_ctrl.set_margin(theme.input_text_margin);
 
     outer_ctrl.set_draw_self(false);
-    outer_ctrl.draw_text(
-        true,
-        Some(Rect::new(0.0, 0.0, label_width, theme.input_text_height)),
-        0.0,
+    outer_ctrl.draw_text_fitted(
         label,
         Align::Start,
         Align::Center,
         Wrap::Word,
         theme.input_text_text_color,
+        Rect::new(0.0, 0.0, label_width, theme.input_text_height),
     );
 
     let mut inner_ctrl = frame.push_ctrl(0);
@@ -156,10 +155,11 @@ where
     let hovered = inner_ctrl.is_hovered();
     let active = inner_ctrl.is_active();
 
-    let mut text_cursor = text_cursor(inner_ctrl.state());
+    let state = get_state(inner_ctrl.state());
+    let mut text_cursor = state.cursor;
     text_cursor = u32::clamp(text_cursor, 0, cast_u32(text.len()));
 
-    let (active, changed, submit) =
+    let (active, changed, action) =
         if active && (!received_characters.is_empty() || inputs_pressed != Inputs::NONE) {
             if inputs_pressed != Inputs::NONE {
                 let text_len_u32 = cast_u32(text.len());
@@ -179,9 +179,9 @@ where
                                 }
                             }
 
-                            (true, true, InputTextSubmit::None)
+                            (true, true, InputTextAction::None)
                         } else {
-                            (true, false, InputTextSubmit::None)
+                            (true, false, InputTextAction::None)
                         }
                     }
 
@@ -192,9 +192,9 @@ where
                             } else if text_cursor < text_len_u32 - 1 {
                                 text.try_splice(cast_usize(text_cursor), 1, "").unwrap();
                             }
-                            (true, true, InputTextSubmit::None)
+                            (true, true, InputTextAction::None)
                         } else {
-                            (true, false, InputTextSubmit::None)
+                            (true, false, InputTextAction::None)
                         }
                     }
 
@@ -203,7 +203,7 @@ where
                             text_cursor -= 1;
                         }
 
-                        (true, false, InputTextSubmit::None)
+                        (true, false, InputTextAction::None)
                     }
 
                     Inputs::KB_RIGHT_ARROW => {
@@ -211,20 +211,20 @@ where
                             text_cursor += 1;
                         }
 
-                        (true, false, InputTextSubmit::None)
+                        (true, false, InputTextAction::None)
                     }
 
                     Inputs::KB_ENTER => {
                         inner_ctrl.set_active(false);
-                        (false, false, InputTextSubmit::Submit)
+                        (false, false, InputTextAction::Submit)
                     }
 
                     Inputs::KB_ESCAPE => {
                         inner_ctrl.set_active(false);
-                        (false, false, InputTextSubmit::Cancel)
+                        (false, false, InputTextAction::Cancel)
                     }
 
-                    _ => (true, false, InputTextSubmit::None),
+                    _ => (true, false, InputTextAction::None),
                 }
             } else {
                 // TODO(yan): This likely won't be robust enough for
@@ -245,16 +245,17 @@ where
                     text_cursor += cast_u32(received_characters.chars().count());
                 }
 
-                (true, true, InputTextSubmit::None)
+                (true, true, InputTextAction::None)
             }
         } else if hovered && inputs_pressed == Inputs::MB_LEFT {
             inner_ctrl.set_active(true);
-            (true, false, InputTextSubmit::None)
+            (true, false, InputTextAction::None)
         } else {
-            (active, false, InputTextSubmit::None)
+            (active, false, InputTextAction::None)
         };
 
-    set_text_cursor(inner_ctrl.state_mut(), text_cursor);
+    let mut state = get_state_mut(inner_ctrl.state_mut());
+    state.cursor = text_cursor;
 
     if active {
         inner_ctrl.request_want_capture_keyboard();
@@ -265,7 +266,7 @@ where
             &InputTextCallbackData {
                 active,
                 changed,
-                submit,
+                action,
             },
             text,
         );
@@ -295,16 +296,7 @@ where
 
     // TODO(yan): The text cursor should always be on screen. This requires
     // text layout to happen first.
-    inner_ctrl.draw_text(
-        true,
-        None,
-        theme.input_text_border,
-        text,
-        Align::Center,
-        Align::Center,
-        Wrap::None,
-        text_color,
-    );
+    inner_ctrl.draw_text(text, Align::Center, Align::Center, Wrap::None, text_color);
 
     frame.pop_ctrl();
     frame.pop_ctrl();
@@ -312,14 +304,19 @@ where
     changed
 }
 
-fn text_cursor(state: &CtrlState) -> u32 {
-    u32::from_le_bytes([state[0], state[1], state[2], state[3]])
+#[repr(C)]
+#[derive(Clone, Copy)]
+#[derive(bytemuck::Zeroable, bytemuck::Pod)]
+struct State {
+    cursor: u32,
+    selection_start: u32,
+    selection_end: u32,
 }
 
-fn set_text_cursor(state: &mut CtrlState, text_cursor: u32) {
-    let bytes = text_cursor.to_le_bytes();
-    state[0] = bytes[0];
-    state[1] = bytes[1];
-    state[2] = bytes[2];
-    state[3] = bytes[3];
+fn get_state(state: &CtrlState) -> &State {
+    bytemuck::from_bytes(&state[..mem::size_of::<State>()])
+}
+
+fn get_state_mut(state: &mut CtrlState) -> &mut State {
+    bytemuck::from_bytes_mut(&mut state[..mem::size_of::<State>()])
 }

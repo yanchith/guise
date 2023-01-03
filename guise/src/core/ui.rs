@@ -212,6 +212,10 @@ impl BitOrAssign for CtrlFlags {
     }
 }
 
+// TODO(yan): The manual byte peeking and poking is a lot of unnecessary and
+// error-prone code. Also alignment sometimes sucks. Let's just view it as a
+// mutable slice and use casts to state structs instead. We already do it in
+// text input, but we should everywhere.
 pub type CtrlState = [u8; 64];
 
 #[derive(Debug, Clone, PartialEq)]
@@ -243,9 +247,11 @@ struct CtrlNode {
 
     scroll_offset: Vec2,
 
-    // TODO(yan): @Speed @Memory Isn't this a lot of state memory? Can we make
-    // the number lower? Or only allocate state memory for controls that need
-    // it?
+    // TODO(yan): @Memory For some controls this is too much memory, and for
+    // some others this is not enough. We should eventually make this as small
+    // as possible, e.g. just enough to satisfy the larger-but-still-small
+    // controls, like Window, and create optional extra state storage for
+    // controls that require a lot more.
     state: CtrlState,
 
     draw_self: bool,
@@ -1654,7 +1660,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
 
     pub fn draw_rect(
         &mut self,
-        include_in_inline_content_rect: bool,
+        extend_inline_content_rect: bool,
         rect: Rect,
         texture_rect: Rect,
         color: u32,
@@ -1675,7 +1681,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         });
 
         parent.draw_range.end += 1;
-        if include_in_inline_content_rect {
+        if extend_inline_content_rect {
             if let Some(inline_content_rect) = &mut parent.inline_content_rect {
                 *inline_content_rect = inline_content_rect.extend_by_rect(rect);
             } else {
@@ -1684,18 +1690,50 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         }
     }
 
-    pub fn draw_text(
+    pub fn draw_text(&mut self, text: &str, halign: Align, valign: Align, wrap: Wrap, color: u32) {
+        self.draw_text_and_do_dishes(false, None, 0.0, text, halign, valign, wrap, color);
+    }
+
+    pub fn draw_text_fitted(
         &mut self,
-        include_in_inline_content_rect: bool,
-        available_rect: Option<Rect>,
-        inset_amount: f32,
         text: &str,
-        horizontal_align: Align,
-        vertical_align: Align,
+        halign: Align,
+        valign: Align,
+        wrap: Wrap,
+        color: u32,
+        fitting: Rect,
+    ) {
+        self.draw_text_and_do_dishes(true, Some(fitting), 0.0, text, halign, valign, wrap, color);
+    }
+
+    pub fn draw_text_inset_and_extend_content_rect(
+        &mut self,
+        text: &str,
+        halign: Align,
+        valign: Align,
+        wrap: Wrap,
+        color: u32,
+        inset: f32,
+    ) {
+        self.draw_text_and_do_dishes(true, None, inset, text, halign, valign, wrap, color);
+    }
+
+    // TODO(yan): @Cleanup This text drawing routine is a monster. It is too
+    // general for the usecases of drawing a static text (e.g. a control label),
+    // and at the same time not powerful enough to draw a text input or a text
+    // area, with features selection, cursors, and stuff.
+    fn draw_text_and_do_dishes(
+        &mut self,
+        extend_inline_content_rect: bool,
+        fitting: Option<Rect>,
+        inset: f32,
+        text: &str,
+        halign: Align,
+        valign: Align,
         wrap: Wrap,
         color: u32,
     ) {
-        assert!(inset_amount >= 0.0);
+        assert!(inset >= 0.0);
 
         // TODO(yan): This has layout issues (characters not being aligned
         // vertically to the baseline) on Roboto, IBM Plex Mono, and Liberation
@@ -1706,9 +1744,6 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         // they have the same ymin (zero) in metrics returned by fontdue, even
         // though they are visibly offset in the rasterized atlas. Could this be
         // an error in fontdue - either in metrics, or rasterization?
-
-        // TODO(yan): Do we need to render fonts snapped to pixels, or do we
-        // just use bilinear blending to smooth them out?
 
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let next_draw_primitive_idx = self.ui.draw_primitives.len();
@@ -1724,20 +1759,20 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         // Note that horizontal align still makes sense for shrinking, because
         // the lines will still be jagged and the width difference between
         // longest line and current line will provide the alignment space.
-        let vertical_align = if parent.flags.intersects(CtrlFlags::RESIZE_TO_FIT_VERTICAL) {
+        let valign = if parent.flags.intersects(CtrlFlags::RESIZE_TO_FIT_VERTICAL) {
             Align::Start
         } else {
-            vertical_align
+            valign
         };
 
         // NB: We zero X and Y of the default parent rect, because emiting draw
         // commands insider a control already uses that control's transform. Not
         // zeroing would apply them twice.
-        let available_rect = available_rect
+        let fitting = fitting
             .unwrap_or_else(|| Rect::new(0.0, 0.0, parent.rect.width, parent.rect.height))
-            .inset(inset_amount);
-        let available_width = available_rect.width;
-        let available_height = available_rect.height;
+            .inset(inset);
+        let available_width = fitting.width;
+        let available_height = fitting.height;
 
         // If we are expected to wrap text, but there's not enough space to
         // render a missing character, don't attempt anything.
@@ -1913,21 +1948,21 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         let line_metrics = self.ui.font_atlas.font_horizontal_line_metrics();
 
         let mut position_y = if lines.len() as f32 * line_metrics.new_line_size < available_height {
-            match vertical_align {
-                Align::Start => line_metrics.line_gap + available_rect.y,
+            match valign {
+                Align::Start => line_metrics.line_gap + fitting.y,
                 Align::Center => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    line_gap + available_rect.y + (available_height - text_block_size) / 2.0
+                    line_gap + fitting.y + (available_height - text_block_size) / 2.0
                 }
                 Align::End => {
                     let line_gap = line_metrics.line_gap;
                     let new_line_size = line_metrics.new_line_size;
                     let text_block_size = new_line_size * lines.len() as f32 - line_gap;
 
-                    line_gap + available_rect.y + available_height - text_block_size
+                    line_gap + fitting.y + available_height - text_block_size
                 }
             }
         } else {
@@ -1937,10 +1972,10 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         for line in &lines {
             let line_slice = &text[line.range.clone()];
 
-            let mut position_x = match horizontal_align {
-                Align::Start => available_rect.x,
-                Align::Center => available_rect.x + (available_width - line.width) / 2.0,
-                Align::End => available_rect.x + available_width - line.width,
+            let mut position_x = match halign {
+                Align::Start => fitting.x,
+                Align::Center => fitting.x + (available_width - line.width) / 2.0,
+                Align::End => fitting.x + available_width - line.width,
             };
 
             for c in line_slice.chars() {
@@ -1962,7 +1997,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                 });
 
                 parent.draw_range.end += 1;
-                if include_in_inline_content_rect {
+                if extend_inline_content_rect {
                     if let Some(inline_content_rect) = &mut parent.inline_content_rect {
                         *inline_content_rect = inline_content_rect.extend_by_rect(rect);
                     } else {
@@ -1978,11 +2013,11 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
 
         // NB: Because this isn't real padding/border, we need to ensure that if
         // we used inset, the final content rect reflects that. This happens
-        // automatically for top and left, but we need to add the inset_amount
+        // automatically for top and left, but we need to add the inset
         // to its size.
-        if include_in_inline_content_rect {
+        if extend_inline_content_rect {
             if let Some(inline_content_rect) = &mut parent.inline_content_rect {
-                *inline_content_rect = inline_content_rect.resize(Vec2::splat(inset_amount));
+                *inline_content_rect = inline_content_rect.resize(Vec2::splat(inset));
             }
         }
     }
