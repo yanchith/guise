@@ -287,7 +287,6 @@ impl<'a> Window<'a> {
             let offset_y = ctrl.scroll_offset_y();
 
             ctrl.draw_rect(
-                false,
                 Rect::new(
                     width - resize_handle_dimension + offset_x,
                     height - resize_handle_dimension + offset_y,

@@ -92,7 +92,6 @@ impl<'a> Checkbox<'a> {
 
         ctrl.set_draw_self(false);
         ctrl.draw_rect(
-            false,
             Rect::new(
                 CHECKBOX_LEFT_PADDING,
                 0.5 * self.theme.checkbox_height - 0.5 * CHECKBOX_OUTER_DIM,
@@ -106,7 +105,6 @@ impl<'a> Checkbox<'a> {
 
         if *self.value {
             ctrl.draw_rect(
-                false,
                 Rect::new(
                     CHECKBOX_LEFT_PADDING + 0.5 * (CHECKBOX_OUTER_DIM - CHECKBOX_INNER_DIM),
                     0.5 * self.theme.checkbox_height - 0.5 * CHECKBOX_INNER_DIM,

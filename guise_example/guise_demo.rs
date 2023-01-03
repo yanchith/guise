@@ -242,14 +242,16 @@ pub fn draw_ui<A: Allocator + Clone>(
                     state.graph_index_count_max = current_draw_list_index_count;
                 }
 
+                // TODO(yan): @Bug The draw_rect calls for the graphs seem to
+                // ignore margin/padding/whatever.
                 for i in 0..GRAPH_LEN {
                     let graph_frame_build_max = if state.graph_frame_build_max == 0.0 {
                         1.0
                     } else {
                         state.graph_frame_build_max
                     };
+
                     panel_ctrl.draw_rect(
-                        false,
                         guise::Rect::new(
                             i as f32 * column_width,
                             height - 1.0 * height / 4.0,
@@ -272,7 +274,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                         state.graph_command_count_max as f32
                     };
                     panel_ctrl.draw_rect(
-                        false,
                         guise::Rect::new(
                             i as f32 * column_width,
                             height - 2.0 * height / 4.0,
@@ -296,7 +297,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                         state.graph_vertex_count_max as f32
                     };
                     panel_ctrl.draw_rect(
-                        false,
                         guise::Rect::new(
                             i as f32 * column_width,
                             height - 3.0 * height / 4.0,
@@ -320,7 +320,6 @@ pub fn draw_ui<A: Allocator + Clone>(
                         state.graph_index_count_max as f32
                     };
                     panel_ctrl.draw_rect(
-                        false,
                         guise::Rect::new(
                             i as f32 * column_width,
                             height - 4.0 * height / 4.0,
@@ -355,7 +354,6 @@ pub fn draw_ui<A: Allocator + Clone>(
 
         let inner_size = window_ctrl.inner_size();
         window_ctrl.draw_rect(
-            false,
             guise::Rect::new(0.0, 0.0, inner_size.x, inner_size.y),
             guise::Rect::ONE,
             0xffffffff,

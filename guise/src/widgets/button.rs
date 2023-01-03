@@ -134,7 +134,6 @@ impl<'a> Button<'a> {
 
         if let Some(image_texture_id) = self.image_texture_id {
             ctrl.draw_rect(
-                false,
                 Rect::new(0.0, 0.0, width, height),
                 Rect::ONE,
                 0xffffffff,

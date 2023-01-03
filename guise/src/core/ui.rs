@@ -1658,14 +1658,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         self.ui.want_capture_mouse = true;
     }
 
-    pub fn draw_rect(
-        &mut self,
-        extend_inline_content_rect: bool,
-        rect: Rect,
-        texture_rect: Rect,
-        color: u32,
-        texture_id: u64,
-    ) {
+    pub fn draw_rect(&mut self, rect: Rect, texture_rect: Rect, color: u32, texture_id: u64) {
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let next_draw_primitive_idx = self.ui.draw_primitives.len();
 
@@ -1681,13 +1674,6 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         });
 
         parent.draw_range.end += 1;
-        if extend_inline_content_rect {
-            if let Some(inline_content_rect) = &mut parent.inline_content_rect {
-                *inline_content_rect = inline_content_rect.extend_by_rect(rect);
-            } else {
-                parent.inline_content_rect = Some(rect);
-            }
-        }
     }
 
     pub fn draw_text(&mut self, text: &str, halign: Align, valign: Align, wrap: Wrap, color: u32) {
