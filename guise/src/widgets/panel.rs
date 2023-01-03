@@ -22,7 +22,6 @@ where
     Panel::new(id, width, height, label).begin(frame)
 }
 
-// TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
 pub fn end_panel<A: Allocator + Clone>(frame: &mut Frame<A>) {
     frame.pop_ctrl();
     frame.pop_ctrl();

@@ -7,7 +7,47 @@ mod renderer_wgpu;
 
 use std::alloc::Global;
 use std::iter;
+use std::ops::DerefMut;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+use arrayvec::ArrayString;
+
+static CLIPBOARD: Mutex<Option<copypasta::ClipboardContext>> = Mutex::new(None);
+
+fn init_clipboard_or_not() {
+    let mut guard = CLIPBOARD.lock().unwrap();
+
+    if guard.is_none() {
+        let clipboard = copypasta::ClipboardContext::new().unwrap();
+        guard.replace(clipboard);
+    }
+}
+
+fn get_clipboard() -> String {
+    use copypasta::ClipboardProvider;
+
+    let mut guard = CLIPBOARD.lock().unwrap();
+    if let Some(c) = guard.deref_mut() {
+        if let Ok(s) = c.get_contents() {
+            s
+        } else {
+            String::new()
+        }
+    } else {
+        String::new()
+    }
+}
+
+fn set_clipboard(text: &str) {
+    use copypasta::ClipboardProvider;
+
+    let mut guard = CLIPBOARD.lock().unwrap();
+    if let Some(c) = guard.deref_mut() {
+        let s = String::from(text);
+        let _ = c.set_contents(s);
+    }
+}
 
 fn main() {
     pretty_env_logger::init();
@@ -18,6 +58,8 @@ fn main() {
         .with_inner_size(winit::dpi::LogicalSize::new(1200, 800))
         .build(&event_loop)
         .expect("Failed to create window");
+
+    init_clipboard_or_not();
 
     let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
     let surface = unsafe { instance.create_surface(&window) };
@@ -73,6 +115,9 @@ fn main() {
         )
     };
 
+    ui.set_clipboard_getter(get_clipboard);
+    ui.set_clipboard_setter(set_clipboard);
+
     let mut renderer = renderer_wgpu::Renderer::new(&device, surface_format);
 
     let font_atlas_image = ui.font_atlas_image_rgba8_unorm();
@@ -88,8 +133,8 @@ fn main() {
 
     let mut state = demo::State {
         button_click_count: 0,
-        input_text_submit_count: 0,
-        input_text_cancel_count: 0,
+        text_input_submit_count: 0,
+        text_input_cancel_count: 0,
         poll_platform_events: true,
         graph: [0.0; demo::GRAPH_LEN],
         graph_max: 0.0,
@@ -101,8 +146,8 @@ fn main() {
         graph_vertex_count_max: 0,
         graph_index_count: [0; demo::GRAPH_LEN],
         graph_index_count_max: 0,
-        input_text_heap: guise::AsciiVec::new_in(Global),
-        input_text_inline: guise::AsciiArrayVec::new(),
+        text_input_heap: guise::VecString::new_in(Global),
+        text_input_inline: ArrayString::new(),
         drag_float_value: 1.0,
         drag_float_value_clamped: 0.0,
         drag_float2_value: [0.0; 2],
@@ -169,7 +214,8 @@ fn main() {
                     ui.send_character(character);
                 }
                 winit::event::WindowEvent::CursorMoved { position, .. } => {
-                    let logical_position = position.to_logical(window.scale_factor());
+                    let scale_factor = window.scale_factor();
+                    let logical_position = position.to_logical(scale_factor);
                     ui.set_cursor_position(logical_position.x, logical_position.y);
                 }
                 winit::event::WindowEvent::MouseWheel { delta, .. } => match delta {
@@ -252,6 +298,24 @@ fn main() {
                         Some(winit::event::VirtualKeyCode::Escape) => {
                             ui.press_inputs(guise::Inputs::KB_ESCAPE);
                         }
+                        Some(winit::event::VirtualKeyCode::A) => {
+                            ui.press_inputs(guise::Inputs::KB_A);
+                        }
+                        Some(winit::event::VirtualKeyCode::F) => {
+                            ui.press_inputs(guise::Inputs::KB_F);
+                        }
+                        Some(winit::event::VirtualKeyCode::B) => {
+                            ui.press_inputs(guise::Inputs::KB_B);
+                        }
+                        Some(winit::event::VirtualKeyCode::X) => {
+                            ui.press_inputs(guise::Inputs::KB_X);
+                        }
+                        Some(winit::event::VirtualKeyCode::C) => {
+                            ui.press_inputs(guise::Inputs::KB_C);
+                        }
+                        Some(winit::event::VirtualKeyCode::V) => {
+                            ui.press_inputs(guise::Inputs::KB_V);
+                        }
                         _ => (),
                     },
                     winit::event::ElementState::Released => match input.virtual_keycode {
@@ -297,9 +361,42 @@ fn main() {
                         Some(winit::event::VirtualKeyCode::Escape) => {
                             ui.release_inputs(guise::Inputs::KB_ESCAPE);
                         }
+                        Some(winit::event::VirtualKeyCode::A) => {
+                            ui.release_inputs(guise::Inputs::KB_A);
+                        }
+                        Some(winit::event::VirtualKeyCode::F) => {
+                            ui.release_inputs(guise::Inputs::KB_F);
+                        }
+                        Some(winit::event::VirtualKeyCode::B) => {
+                            ui.release_inputs(guise::Inputs::KB_B);
+                        }
+                        Some(winit::event::VirtualKeyCode::X) => {
+                            ui.release_inputs(guise::Inputs::KB_X);
+                        }
+                        Some(winit::event::VirtualKeyCode::C) => {
+                            ui.release_inputs(guise::Inputs::KB_C);
+                        }
+                        Some(winit::event::VirtualKeyCode::V) => {
+                            ui.release_inputs(guise::Inputs::KB_V);
+                        }
                         _ => (),
                     },
                 },
+                winit::event::WindowEvent::ModifiersChanged(state) => {
+                    let mut modifiers = guise::Modifiers::empty();
+
+                    if state.ctrl() {
+                        modifiers |= guise::Modifiers::CTRL;
+                    }
+                    if state.alt() {
+                        modifiers |= guise::Modifiers::ALT;
+                    }
+                    if state.shift() {
+                        modifiers |= guise::Modifiers::SHIFT;
+                    }
+
+                    ui.set_modifiers(modifiers);
+                }
                 _ => (),
             },
             winit::event::Event::MainEventsCleared => {

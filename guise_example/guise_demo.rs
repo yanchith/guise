@@ -35,8 +35,8 @@ pub const GRAPH_LEN: usize = 60;
 
 pub struct State {
     pub button_click_count: u64,
-    pub input_text_submit_count: u64,
-    pub input_text_cancel_count: u64,
+    pub text_input_submit_count: u64,
+    pub text_input_cancel_count: u64,
     pub poll_platform_events: bool,
     pub graph: [f32; GRAPH_LEN],
     pub graph_max: f32,
@@ -48,8 +48,8 @@ pub struct State {
     pub graph_vertex_count_max: usize,
     pub graph_index_count: [usize; GRAPH_LEN],
     pub graph_index_count_max: usize,
-    pub input_text_heap: guise::AsciiVec<Global>,
-    pub input_text_inline: guise::AsciiArrayVec<64>,
+    pub text_input_heap: guise::VecString<Global>,
+    pub text_input_inline: ArrayString<64>,
     pub drag_float_value: f32,
     pub drag_float_value_clamped: f32,
     pub drag_float2_value: [f32; 2],
@@ -104,14 +104,15 @@ pub fn draw_ui<A: Allocator + Clone>(
                         "Button click count {}\nText Input submit count {}\nText Input cancel \
                          count {}",
                         state.button_click_count,
-                        state.input_text_submit_count,
-                        state.input_text_cancel_count,
+                        state.text_input_submit_count,
+                        state.text_input_cancel_count,
                     ),
                 );
 
                 guise::separator(frame, line!());
 
-                guise::Text::new(
+                guise::text_with_align(
+                    frame,
                     line!(),
                     fmt!(
                         s,
@@ -127,9 +128,8 @@ pub fn draw_ui<A: Allocator + Clone>(
                         stats.want_capture_keyboard,
                         stats.want_capture_mouse,
                     ),
-                )
-                .set_horizontal_align(guise::Align::Start)
-                .show(frame);
+                    guise::Align::Start,
+                );
 
                 guise::end_panel(frame);
             }
@@ -145,18 +145,11 @@ pub fn draw_ui<A: Allocator + Clone>(
                 .set_draw_border(false)
                 .begin(frame);
 
-                if guise::Button::new(line!(), "<image>")
-                    .set_image(0)
-                    .set_tooltip("An image button")
-                    .show(frame)
-                {
+                if guise::image_button_with_tooltip(frame, line!(), 0, "An image button") {
                     state.button_click_count += 1;
                 }
 
-                if guise::Button::new(line!(), "A button with tooltip")
-                    .set_tooltip(TEXT)
-                    .show(frame)
-                {
+                if guise::button_with_tooltip(frame, line!(), "A button with tooltip", TEXT) {
                     state.button_click_count += 1;
                 }
 
@@ -193,15 +186,9 @@ pub fn draw_ui<A: Allocator + Clone>(
                     let j = i + 1;
                     let k = i + 2;
 
-                    guise::Text::new(i, TEXT)
-                        .set_horizontal_align(guise::Align::Start)
-                        .show(frame);
-                    guise::Text::new(j, TEXT)
-                        .set_horizontal_align(guise::Align::Center)
-                        .show(frame);
-                    guise::Text::new(k, TEXT)
-                        .set_horizontal_align(guise::Align::End)
-                        .show(frame);
+                    guise::text_with_align(frame, i, TEXT, guise::Align::Start);
+                    guise::text_with_align(frame, j, TEXT, guise::Align::Center);
+                    guise::text_with_align(frame, k, TEXT, guise::Align::End);
                 }
 
                 guise::end_panel(frame);
@@ -452,33 +439,45 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::separator(frame, line!());
         guise::text(frame, line!(), "Text inputs");
 
-        guise::input_text_with_callback(
+        guise::text_input_with_callback(
             frame,
             line!(),
-            &mut state.input_text_heap,
-            "Heap String",
+            &mut state.text_input_inline,
+            "Inline String",
             |data, _| match data.action {
-                guise::InputTextAction::None => (),
-                guise::InputTextAction::Submit => state.input_text_submit_count += 1,
-                guise::InputTextAction::Cancel => state.input_text_cancel_count += 1,
+                guise::TextInputAction::None => (),
+                guise::TextInputAction::Submit => state.text_input_submit_count += 1,
+                guise::TextInputAction::Cancel => state.text_input_cancel_count += 1,
             },
         );
 
-        guise::input_text_with_callback(
+        guise::text_input_with_callback_autocomplete(
             frame,
             line!(),
-            &mut state.input_text_inline,
-            "Stack String",
+            &mut state.text_input_heap,
+            "Heap String (with autocomplete)",
             |data, _| match data.action {
-                guise::InputTextAction::None => (),
-                guise::InputTextAction::Submit => state.input_text_submit_count += 1,
-                guise::InputTextAction::Cancel => state.input_text_cancel_count += 1,
+                guise::TextInputAction::None => (),
+                guise::TextInputAction::Submit => state.text_input_submit_count += 1,
+                guise::TextInputAction::Cancel => state.text_input_cancel_count += 1,
             },
+            &[
+                "Mag Iontach (The Brilliant Plain)",
+                "Réimse an Nádúr (Realm of Nature)",
+                "Tír an t-Ór (Land of Gold)",
+                "Tír Naomhtha (The Hallowed Land)",
+                "Domhan an Filleadh (World of the Return)",
+                "Réimse na Seaimpíní (Realm of Champions)",
+                "Tír Cheart (The Righteous Land)",
+                "Tír Ardaithe (The Exalted Land)",
+                "Tír Geal (The Bright Land)",
+                "Tír an Dath (Land of Color)",
+            ],
         );
 
         if guise::button(frame, line!(), "Clear") {
-            state.input_text_heap.clear();
-            state.input_text_inline.clear();
+            state.text_input_heap.clear();
+            state.text_input_inline.clear();
         }
 
         guise::separator(frame, line!());

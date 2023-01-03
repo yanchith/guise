@@ -6,19 +6,19 @@ use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Wrap
 use crate::widgets::button::button;
 use crate::widgets::theme::Theme;
 
-// TODO(yan): Searchable dropdown.
+// TODO(yan): Searchable dropdown, analogous to autocomplete text input?
 
 // TODO(yan): Consider a more granular api, where opening the dropdown is
 // independent from drawing its contents. Something like:
 //
-// if let Some(token) = guise::dropdown(frame, line!(), "Label", &state.selected_option.label, &mut state.open) {
+// if let Some(dropdown) = guise::dropdown(frame, line!(), "Label", &state.selected_option.label, &mut state.open) {
 //     for option in &options {
 //         if guise::button(frame, line!(), option.label) {
 //             state.selected_option = option;
 //         }
 //     }
 //
-//     token.end();
+//     dropdown.end();
 // }
 //
 

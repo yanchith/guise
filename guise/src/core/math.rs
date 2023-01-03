@@ -333,14 +333,23 @@ impl Rect {
 
     /// Modifies size of this rect such that it will be round after multiplying
     /// with the provided scale factor.
+    ///
+    /// This is a hack to prevent rendering artifacts on setups with noninteger
+    /// window scale factors, e.g. if a button has a 1px border, this is still a
+    /// 1px border with scale factor 1, it is a 2px border with scale factor 2,
+    /// and is sometimes 1px and sometimes 2px border with scale factor 1.5,
+    /// depending on the current transform. Hardware MSAA makes the artifact
+    /// goes away, but we don't want to force that in our backends.
     pub fn round_size_for_scale_factor(&self, scale_factor: f32) -> Self {
-        // This is a hack to prevent rendering artifacts on setups with
-        // noninteger window scale factors, e.g. if a button has a 1px border,
-        // this is still a 1px border with scale factor 1, it is a 2px border
-        // with scale factor 2, and is sometimes 1px and *sometimes* 2px border
-        // with scale factor 1.5, depending on the current transform. Hardware
-        // AA (multisampling) makes the artifact goes away, but we don't want to
-        // force that in our backends.
+        // TODO(yan): @Cleanup @Hack #Antialiasing We currently do
+        // Rect::round_size_for_scale_factor, which makes the rect have
+        // dimension representable in whole pixels after rendering. If the
+        // backend supports AA, this is probably useless, and maybe even makes
+        // things look much worse, but it helps us deal with moiree patterns and
+        // various ugliness when the backend doesn't AA.  What is the best
+        // approach here? We also originally didn't do this for text, but now we
+        // do. Is it a mistake? I think I should finally stop being a dilettante
+        // and learn about drawing things.
 
         Self {
             x: self.x,

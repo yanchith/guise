@@ -2,9 +2,11 @@
 #![feature(allocator_api)]
 #![feature(const_float_classify)]
 #![feature(const_trait_impl)]
+#![feature(round_char_boundary)]
 // Disabled style lints
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::comparison_chain)]
+#![allow(clippy::len_zero)]
 #![allow(clippy::partialeq_to_none)]
 #![allow(clippy::too_many_arguments)]
 

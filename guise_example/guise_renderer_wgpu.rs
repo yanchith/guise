@@ -407,5 +407,5 @@ impl Renderer {
 fn size_of<T>() -> wgpu::BufferAddress {
     let size = mem::size_of::<T>();
     wgpu::BufferAddress::try_from(size)
-        .unwrap_or_else(|_| panic!("Size {} does not fit into wgpu BufferAddress", size))
+        .unwrap_or_else(|_| panic!("Size {size} does not fit into wgpu BufferAddress"))
 }

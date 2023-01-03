@@ -395,7 +395,7 @@ fn show<A: Allocator + Clone>(
         inner_ctrl.set_draw_self_background_color(background_color);
 
         s.clear();
-        let _ = write!(s, "{}", value_mut_slot);
+        let _ = write!(s, "{value_mut_slot}");
         inner_ctrl.draw_text(&s, Align::Center, Align::Center, Wrap::Word, text_color);
 
         frame.pop_ctrl();

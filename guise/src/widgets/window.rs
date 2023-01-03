@@ -12,7 +12,6 @@ const ACTIVITY_NONE: u8 = 0;
 const ACTIVITY_MOVE: u8 = 1;
 const ACTIVITY_RESIZE: u8 = 2;
 
-// TODO(yan): Decide if we want an RAII thing, or an explicit end for widgets
 pub fn begin_window<'f, X, Y, W, H, A>(
     frame: &'f mut Frame<A>,
     id: u32,

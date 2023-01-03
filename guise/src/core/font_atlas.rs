@@ -197,6 +197,7 @@ pub struct GlyphInfo {
 // fontdue to build pipeline.
 pub struct FontAtlas<A: Allocator + Clone> {
     font: fontdue::Font,
+    font_size: f32,
     font_horizontal_line_metrics: fontdue::LineMetrics,
     image: Vec<u8>,
     image_width: u16,
@@ -400,6 +401,7 @@ impl<A: Allocator + Clone> FontAtlas<A> {
 
         Self {
             font,
+            font_size,
             font_horizontal_line_metrics,
             image: atlas_image,
             image_width: atlas_pixel_width,
@@ -407,6 +409,10 @@ impl<A: Allocator + Clone> FontAtlas<A> {
             glyph_index_to_info,
             missing_glyph_info,
         }
+    }
+
+    pub fn font_size(&self) -> f32 {
+        self.font_size
     }
 
     pub fn image_size(&self) -> (u16, u16) {

@@ -1,7 +1,8 @@
+use alloc::string::String;
 use alloc::vec::Vec;
 use core::alloc::Allocator;
 use core::mem;
-use core::ops::{BitOr, BitOrAssign, Range};
+use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, Not, Range};
 
 use arrayvec::ArrayString;
 
@@ -12,7 +13,7 @@ use crate::core::math::{Rect, Vec2};
 const ROOT_IDX: usize = 0;
 const OVERLAY_ROOT_IDX: usize = 1;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Inputs(u32);
 
 impl Inputs {
@@ -39,6 +40,18 @@ impl Inputs {
     pub const KB_ENTER: Self = Self(0x80000);
     pub const KB_ESCAPE: Self = Self(0x100000);
 
+    // Selection:
+    pub const KB_A: Self = Self(0x200000);
+
+    // Emacs keys:
+    pub const KB_F: Self = Self(0x400000);
+    pub const KB_B: Self = Self(0x800000);
+
+    // Copy & Paste:
+    pub const KB_X: Self = Self(0x1000000);
+    pub const KB_C: Self = Self(0x2000000);
+    pub const KB_V: Self = Self(0x8000000);
+
     // TODO(yan): Fill in gamepad thingies.
 
     pub const NONE: Self = Self(0);
@@ -62,7 +75,13 @@ impl Inputs {
         | Self::KB_DELETE
         | Self::KB_BACKSPACE
         | Self::KB_ENTER
-        | Self::KB_ESCAPE;
+        | Self::KB_ESCAPE
+        | Self::KB_F
+        | Self::KB_B
+        | Self::KB_A
+        | Self::KB_X
+        | Self::KB_C
+        | Self::KB_V;
 
     pub fn bits(&self) -> u32 {
         self.0
@@ -95,6 +114,70 @@ impl BitOrAssign for Inputs {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub struct Modifiers(u32);
+
+impl Modifiers {
+    pub const CTRL: Self = Self(0x01);
+    pub const ALT: Self = Self(0x02);
+    pub const SHIFT: Self = Self(0x04);
+
+    pub const NONE: Self = Self(0);
+    pub const ALL: Self = Self::CTRL | Self::ALT | Self::SHIFT;
+
+    pub fn bits(&self) -> u32 {
+        self.0
+    }
+
+    pub fn from_bits_truncate(bits: u32) -> Self {
+        Self(Self::ALL.0 & bits)
+    }
+
+    pub fn empty() -> Self {
+        Self(0)
+    }
+
+    pub fn intersects(&self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+}
+
+impl const BitOr for Modifiers {
+    type Output = Self;
+
+    fn bitor(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+impl BitOrAssign for Modifiers {
+    fn bitor_assign(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+}
+
+impl const BitAnd for Modifiers {
+    type Output = Self;
+
+    fn bitand(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+}
+
+impl BitAndAssign for Modifiers {
+    fn bitand_assign(&mut self, other: Self) {
+        self.0 &= other.0;
+    }
+}
+
+impl Not for Modifiers {
+    type Output = Self;
+
+    fn not(self) -> Self {
+        Self(!self.0)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Layout {
     Free,
@@ -123,12 +206,11 @@ enum DrawPrimitive {
         texture_rect: Rect,
         texture_id: u64,
         color: u32,
-        round_size_for_scale_factor: bool,
     },
     // TODO(yan): Circles, Rounded arcs, whatever..
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct CtrlFlags(u32);
 
 impl CtrlFlags {
@@ -294,7 +376,12 @@ pub struct Ui<A: Allocator + Clone> {
     cursor_position: Vec2,
     inputs_pressed: Inputs,
     inputs_released: Inputs,
+    modifiers: Modifiers,
     received_characters: ArrayString<32>,
+    // TODO(yan): @Memory Would we great if we didn't allocate the String
+    // here.. somehow.
+    clipboard_getter: fn() -> String,
+    clipboard_setter: fn(&str),
 
     active_ctrl_idx: Option<usize>,
     hovered_ctrl_idx: Option<usize>,
@@ -408,7 +495,10 @@ impl<A: Allocator + Clone> Ui<A> {
             cursor_position: Vec2::ZERO,
             inputs_pressed: Inputs::empty(),
             inputs_released: Inputs::empty(),
+            modifiers: Modifiers::empty(),
             received_characters: ArrayString::new(),
+            clipboard_getter: empty_clipboard_getter,
+            clipboard_setter: empty_clipboard_setter,
 
             active_ctrl_idx: None,
             hovered_ctrl_idx: None,
@@ -449,8 +539,36 @@ impl<A: Allocator + Clone> Ui<A> {
         self.inputs_released |= inputs;
     }
 
+    pub fn set_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers = modifiers;
+    }
+
+    pub fn press_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers |= modifiers;
+    }
+
+    pub fn release_modifiers(&mut self, modifiers: Modifiers) {
+        self.modifiers &= !modifiers;
+    }
+
     pub fn send_character(&mut self, character: char) {
         let _ = self.received_characters.try_push(character);
+    }
+
+    pub fn set_clipboard_getter(&mut self, getter: fn() -> String) {
+        self.clipboard_getter = getter;
+    }
+
+    pub fn set_clipboard_setter(&mut self, setter: fn(&str)) {
+        self.clipboard_setter = setter;
+    }
+
+    pub fn font_atlas(&self) -> &FontAtlas<A> {
+        &self.font_atlas
+    }
+
+    pub fn font_atlas_texture_id(&self) -> u64 {
+        self.font_atlas_texture_id
     }
 
     pub fn font_atlas_image_size(&self) -> (u16, u16) {
@@ -983,17 +1101,7 @@ impl<A: Allocator + Clone> Ui<A> {
                 let ctrl_padding_rect_absolute = ctrl_rect_absolute.inset(ctrl.border);
 
                 if !ctrl_rect_absolute.is_empty() && !ctrl_padding_rect_absolute.is_empty() {
-                    // TODO(yan): The borders appear jittery on noninteger dpi
-                    // scale factors (at least on 1.5). This stops happening, if
-                    // the OS switches to an integer scale factor, such as 1 or
-                    // 2, or with hardware anti-aliasing. We currently cheat
-                    // this with Rect::round_size_for_scale_factor, but do we
-                    // actually want to think with physical pixels internally,
-                    // and only expose logical pixels on the surface?
-                    // Alternatively, do we want to think in physical pixels in
-                    // line drawing (like here), but not elsewhere?
-
-                    // NB: f32::max is used in substractions here because fp
+                    // Dimensions are clamped in subtractions here, because fp
                     // precision commonly caused the result to be below 0, which
                     // is a big no-no for Rect::new.
 
@@ -1082,15 +1190,10 @@ impl<A: Allocator + Clone> Ui<A> {
                         texture_rect,
                         texture_id,
                         color,
-                        round_size_for_scale_factor,
                     } => {
                         let rect = *rect + ctrl_rect_absolute.min_point() - ctrl.scroll_offset;
                         draw_list.draw_rect(
-                            if *round_size_for_scale_factor {
-                                rect.round_size_for_scale_factor(window_scale_factor)
-                            } else {
-                                rect
-                            },
+                            rect.round_size_for_scale_factor(window_scale_factor),
                             *texture_rect,
                             *color,
                             ctrl_scissor_rect,
@@ -1175,6 +1278,10 @@ impl<A: Allocator + Clone> Ui<A> {
         self.inputs_pressed = Inputs::empty();
         self.inputs_released = Inputs::empty();
         self.received_characters.clear();
+    }
+
+    pub fn allocator(&self) -> &A {
+        &self.allocator
     }
 }
 
@@ -1443,6 +1550,10 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
         self.ui.building_overlay = false;
     }
 
+    pub fn font_atlas(&self) -> &FontAtlas<A> {
+        &self.ui.font_atlas
+    }
+
     pub fn font_atlas_texture_id(&self) -> u64 {
         self.ui.font_atlas_texture_id
     }
@@ -1479,6 +1590,10 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
         self.ui.inputs_released
     }
 
+    pub fn modifiers(&self) -> Modifiers {
+        self.ui.modifiers
+    }
+
     pub fn received_characters(&self) -> &str {
         &self.ui.received_characters
     }
@@ -1505,6 +1620,10 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
 
     pub fn ctrl_count(&self) -> usize {
         self.ui.ctrl_count()
+    }
+
+    pub fn allocator(&self) -> &A {
+        &self.ui.allocator
     }
 }
 
@@ -1650,6 +1769,14 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         self.ui.tree[self.idx].scroll_offset.y
     }
 
+    pub fn get_clipboard_text(&self) -> String {
+        (self.ui.clipboard_getter)()
+    }
+
+    pub fn set_clipboard_text(&mut self, text: &str) {
+        (self.ui.clipboard_setter)(text)
+    }
+
     pub fn request_want_capture_keyboard(&mut self) {
         self.ui.want_capture_keyboard = true;
     }
@@ -1670,7 +1797,6 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             texture_rect,
             texture_id,
             color,
-            round_size_for_scale_factor: true,
         });
 
         parent.draw_range.end += 1;
@@ -1806,18 +1932,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                 continue;
             }
 
-            let glyph_info = {
-                let info = self.ui.font_atlas.glyph_info(c);
-
-                // If we are expected to wrap text, but there's not enough space
-                // to render our current character, use metrics for the
-                // replacement character instead.
-                if wrap != Wrap::None && info.advance_width > available_width {
-                    self.ui.font_atlas.missing_glyph_info()
-                } else {
-                    info
-                }
-            };
+            let glyph_info = self.ui.font_atlas.glyph_info(c);
             let glyph_advance_width = glyph_info.advance_width;
 
             if line_width + glyph_advance_width > available_width {
@@ -1965,10 +2080,10 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             };
 
             for c in line_slice.chars() {
-                let info = self.ui.font_atlas.glyph_info(c);
+                let glyph_info = self.ui.font_atlas.glyph_info(c);
 
                 let position = Vec2::new(position_x, position_y);
-                let rect = info.rect + position + Vec2::y(line_metrics.ascent);
+                let rect = glyph_info.rect + position + Vec2::y(line_metrics.ascent);
 
                 // TODO(yan): @Speed @Memory Does early software scissor make
                 // sense here? We also do it later, when translating to the
@@ -1976,10 +2091,9 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                 // translate.
                 self.ui.draw_primitives.push(DrawPrimitive::Rect {
                     rect,
-                    texture_rect: info.atlas_rect,
+                    texture_rect: glyph_info.atlas_rect,
                     texture_id: self.ui.font_atlas_texture_id,
                     color,
-                    round_size_for_scale_factor: false,
                 });
 
                 parent.draw_range.end += 1;
@@ -1991,7 +2105,7 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
                     }
                 }
 
-                position_x += info.advance_width;
+                position_x += glyph_info.advance_width;
             }
 
             position_y += line_metrics.new_line_size;
@@ -2007,6 +2121,22 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
             }
         }
     }
+
+    pub fn cursor_position(&self) -> Vec2 {
+        self.ui.cursor_position
+    }
+
+    pub fn font_atlas(&self) -> &FontAtlas<A> {
+        &self.ui.font_atlas
+    }
+
+    pub fn font_atlas_texture_id(&self) -> u64 {
+        self.ui.font_atlas_texture_id
+    }
+
+    pub fn allocator(&self) -> &A {
+        &self.ui.allocator
+    }
 }
 
 fn join_id(id_base: u32, id_ctrl: u32) -> u64 {
@@ -2015,3 +2145,9 @@ fn join_id(id_base: u32, id_ctrl: u32) -> u64 {
 
     id_base_u64 | id_ctrl_u64 << 32
 }
+
+fn empty_clipboard_getter() -> String {
+    String::new()
+}
+
+fn empty_clipboard_setter(_: &str) {}
