@@ -110,6 +110,7 @@ pub struct Theme {
 
     pub panel_border_color: u32,
     pub panel_background_color: u32,
+    pub panel_margin: f32,
     pub panel_border: f32,
     pub panel_padding: f32,
     pub panel_header_text_color: u32,
@@ -250,6 +251,7 @@ impl Theme {
 
         panel_border_color: TRANSPARENT,
         panel_background_color: TRANSPARENT,
+        panel_margin: 5.0,
         panel_border: 0.0,
         panel_padding: 5.0,
         panel_header_text_color: TEXT_COLOR_HEADER,

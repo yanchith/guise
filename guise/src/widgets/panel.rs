@@ -115,27 +115,27 @@ impl<'a> Panel<'a> {
             CtrlFlags::CAPTURE_SCROLL
         };
 
+        let outer_width = f32::max(
+            0.0,
+            self.width.resolve(parent_size.x) - 2.0 * self.theme.panel_margin,
+        );
+        let outer_height = f32::max(
+            0.0,
+            self.height.resolve(parent_size.y) - 2.0 * self.theme.panel_margin,
+        );
+
         let mut outer_ctrl = frame.push_ctrl(self.id);
         outer_ctrl.set_flags(outer_flags);
         outer_ctrl.set_layout(Layout::Vertical);
-        outer_ctrl.set_rect(Rect::new(
-            0.0,
-            0.0,
-            self.width.resolve(parent_size.x),
-            self.height.resolve(parent_size.y),
-        ));
+        outer_ctrl.set_rect(Rect::new(0.0, 0.0, outer_width, outer_height));
 
-        outer_ctrl.set_padding(if self.draw_padding {
-            self.theme.panel_padding
-        } else {
-            0.0
-        });
+        outer_ctrl.set_padding(0.0);
         outer_ctrl.set_border(if self.draw_border {
             self.theme.panel_border
         } else {
             0.0
         });
-        outer_ctrl.set_margin(0.0);
+        outer_ctrl.set_margin(self.theme.panel_margin);
 
         if self.draw_border {
             outer_ctrl.set_draw_self(true);
@@ -149,7 +149,7 @@ impl<'a> Panel<'a> {
             header_ctrl.set_rect(Rect::new(
                 0.0,
                 0.0,
-                self.width.resolve(parent_size.x),
+                outer_width,
                 self.theme.panel_header_height,
             ));
             header_ctrl.set_padding(0.0);
@@ -181,17 +181,18 @@ impl<'a> Panel<'a> {
         body_ctrl.set_rect(Rect::new(
             0.0,
             0.0,
-            self.width.resolve(parent_size.x),
+            outer_width,
             if self.draw_header {
-                f32::max(
-                    0.0,
-                    self.height.resolve(parent_size.y) - self.theme.panel_header_height,
-                )
+                f32::max(0.0, outer_height - self.theme.panel_header_height)
             } else {
-                self.height.resolve(parent_size.y)
+                outer_height
             },
         ));
-        body_ctrl.set_padding(0.0);
+        body_ctrl.set_padding(if self.draw_padding {
+            self.theme.panel_padding
+        } else {
+            0.0
+        });
         body_ctrl.set_border(0.0);
         body_ctrl.set_margin(0.0);
 
