@@ -1,0 +1,6 @@
+[target.x86_64-pc-windows-msvc]
+# This is actually not just an optimization... For some reason on one of my
+# machines MSVC link.exe fails with the following error, but rust-lld doesn't:
+#
+# note: libshaderc_sys-76b3b0a236d07f84.rlib(ShaderLang.obj) : fatal error LNK1377: '??_EIncluder@TShader@glslang@@UEAAPEAXI@Z' symbol not found in object. The containing library is corrupt.
+linker = "rust-lld"
