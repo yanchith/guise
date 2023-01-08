@@ -50,7 +50,7 @@ where
 }
 
 #[inline]
-pub fn text_input_autocomplete<T, A>(
+pub fn text_input_with_autocomplete<T, A>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
