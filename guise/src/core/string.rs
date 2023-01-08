@@ -47,7 +47,7 @@ impl<A: Allocator> VecString<A> {
     }
 
     pub fn from_utf8_in(bytes: &[u8], allocator: A) -> Result<Self, Utf8Error> {
-        match str::from_utf8(&bytes) {
+        match str::from_utf8(bytes) {
             Ok(s) => Ok(Self::from_str_in(s, allocator)),
             Err(e) => Err(e),
         }
