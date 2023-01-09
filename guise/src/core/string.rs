@@ -12,12 +12,6 @@ use arrayvec::ArrayString;
 #[derive(Debug)]
 pub struct TextCapacityError;
 
-// TODO(yan): Have indexable string type for for wide characters (UTF-32/char).
-//
-// This means that Deref<Target = str> won't be sufficient for TextStorage, as
-// UTF-32 chars do not deref to str and we'll need a different interface to pass
-// it to text layout. Currently the only operations we use from string is
-// subslicing, char iteration, and char index iteration.
 pub trait TextStorage: Deref<Target = str> {
     fn truncate(&mut self, new_len: usize);
     fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError>;
@@ -73,6 +67,7 @@ impl<A: Allocator> VecString<A> {
     }
 
     pub fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
+        // TODO(yan): Use fallible allocation and String::try_reserve.
         self.0.extend(s.as_bytes());
         Ok(())
     }
@@ -104,7 +99,6 @@ impl<A: Allocator> VecString<A> {
         // just redirect it to another method in this case. We should totally
         // audit the entirety of this and cover it with tests.
         if index == len && delete_byte_count == 0 {
-            // TODO(yan): Return TextCapacityError here, if we can't reserve.
             return self.try_extend(insert);
         }
 
@@ -235,7 +229,7 @@ impl TextStorage for String {
 
     #[inline]
     fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
-        // TODO(yan): Use fallibale allocation and String::try_reserve.
+        // TODO(yan): Use fallible allocation and String::try_reserve.
         String::push_str(self, s);
         Ok(())
     }
@@ -261,7 +255,6 @@ impl TextStorage for String {
         // just redirect it to another method in this case. We should totally
         // audit the entirety of this and cover it with tests.
         if index == len && delete_byte_count == 0 {
-            // TODO(yan): Return TextCapacityError here, if we can't reserve.
             return self.try_extend(insert);
         }
 
@@ -335,7 +328,6 @@ impl<const N: usize> TextStorage for ArrayString<N> {
         // just redirect it to another method in this case. We should totally
         // audit the entirety of this and cover it with tests.
         if index == len && delete_byte_count == 0 {
-            // TODO(yan): Return TextCapacityError here, if we can't reserve.
             return self.try_extend(insert);
         }
 

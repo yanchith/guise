@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use core::alloc::Allocator;
 use core::mem;
-use core::ops::Range;
+use core::ops::{Deref, Range};
 
 use arrayvec::{ArrayString, ArrayVec};
 
@@ -46,22 +46,23 @@ where
     T: TextStorage,
     A: Allocator + Clone,
 {
-    do_text_input_and_file_my_taxes(frame, id, text, label, None, &[], &Theme::DEFAULT)
+    do_text_input_and_file_taxes::<_, _, &str>(frame, id, text, label, None, &[], &Theme::DEFAULT)
 }
 
 #[inline]
-pub fn text_input_with_autocomplete<T, A>(
+pub fn text_input_with_autocomplete<T, A, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
-    autocomplete: &[&str],
+    autocomplete: &[D],
 ) -> bool
 where
     T: TextStorage,
     A: Allocator + Clone,
+    D: Deref<Target = str>,
 {
-    do_text_input_and_file_my_taxes(frame, id, text, label, None, autocomplete, &Theme::DEFAULT)
+    do_text_input_and_file_taxes(frame, id, text, label, None, autocomplete, &Theme::DEFAULT)
 }
 
 #[inline]
@@ -76,23 +77,24 @@ where
     T: TextStorage,
     A: Allocator + Clone,
 {
-    do_text_input_and_file_my_taxes(frame, id, text, label, None, &[], theme)
+    do_text_input_and_file_taxes::<_, _, &str>(frame, id, text, label, None, &[], theme)
 }
 
 #[inline]
-pub fn text_input_with_autocomplete_theme<T, A>(
+pub fn text_input_with_autocomplete_theme<T, A, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
-    autocomplete: &[&str],
+    autocomplete: &[D],
     theme: &Theme,
 ) -> bool
 where
     T: TextStorage,
     A: Allocator + Clone,
+    D: Deref<Target = str>,
 {
-    do_text_input_and_file_my_taxes(frame, id, text, label, None, autocomplete, theme)
+    do_text_input_and_file_taxes(frame, id, text, label, None, autocomplete, theme)
 }
 
 #[inline]
@@ -108,7 +110,7 @@ where
     A: Allocator + Clone,
     C: FnMut(&TextInputCallbackData, &mut T),
 {
-    do_text_input_and_file_my_taxes(
+    do_text_input_and_file_taxes::<_, _, &str>(
         frame,
         id,
         text,
@@ -120,20 +122,21 @@ where
 }
 
 #[inline]
-pub fn text_input_with_callback_autocomplete<T, A, C>(
+pub fn text_input_with_callback_autocomplete<T, A, C, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
     mut callback: C,
-    autocomplete: &[&str],
+    autocomplete: &[D],
 ) -> bool
 where
     T: TextStorage,
     A: Allocator + Clone,
     C: FnMut(&TextInputCallbackData, &mut T),
+    D: Deref<Target = str>,
 {
-    do_text_input_and_file_my_taxes(
+    do_text_input_and_file_taxes(
         frame,
         id,
         text,
@@ -158,25 +161,34 @@ where
     A: Allocator + Clone,
     C: FnMut(&TextInputCallbackData, &mut T),
 {
-    do_text_input_and_file_my_taxes(frame, id, text, label, Some(&mut callback), &[], theme)
+    do_text_input_and_file_taxes::<_, _, &str>(
+        frame,
+        id,
+        text,
+        label,
+        Some(&mut callback),
+        &[],
+        theme,
+    )
 }
 
 #[inline]
-pub fn text_input_with_callback_autocomplete_theme<T, A, C>(
+pub fn text_input_with_callback_autocomplete_theme<T, A, C, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
     mut callback: C,
-    autocomplete: &[&str],
+    autocomplete: &[D],
     theme: &Theme,
 ) -> bool
 where
     T: TextStorage,
     A: Allocator + Clone,
     C: FnMut(&TextInputCallbackData, &mut T),
+    D: Deref<Target = str>,
 {
-    do_text_input_and_file_my_taxes(
+    do_text_input_and_file_taxes(
         frame,
         id,
         text,
@@ -188,18 +200,19 @@ where
 }
 
 #[allow(clippy::type_complexity)]
-fn do_text_input_and_file_my_taxes<A, T>(
+fn do_text_input_and_file_taxes<T, A, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
     callback: Option<&mut dyn FnMut(&TextInputCallbackData, &mut T)>,
-    autocomplete: &[&str],
+    autocomplete: &[D],
     theme: &Theme,
 ) -> bool
 where
     A: Allocator + Clone,
     T: TextStorage,
+    D: Deref<Target = str>,
 {
     let parent_size = frame.ctrl_inner_size();
     let inputs_pressed = frame.inputs_pressed();
@@ -582,9 +595,12 @@ where
         if text.len() > 0 {
             // TODO(yan): Ignore case (but don't allocate!).
             // TODO(yan): Fuzzy string matching and sorting by score.
-            for &candidate in autocomplete {
-                if candidate.contains(text.deref()) {
-                    results.push(candidate);
+            let text_str: &str = text.deref();
+            for candidate in autocomplete {
+                let candidate_str: &str = candidate.deref();
+
+                if candidate_str.contains(text_str) {
+                    results.push(candidate_str);
                 }
 
                 if results.is_full() {
