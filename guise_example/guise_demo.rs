@@ -74,108 +74,137 @@ pub fn draw_ui<A: Allocator + Clone>(
     let mut s: ArrayString<1024> = ArrayString::new();
 
     if let Some((window, _)) = guise::begin_window(frame, line!(), "41%", "1%", "58%", "98%") {
-        guise::Panel::new(line!(), "100%", "48%", "Panel header text")
-            .set_layout(guise::Layout::Horizontal)
-            .set_draw_padding(false)
-            .begin(frame);
-
-        {
-            guise::Panel::new(line!(), "50%", "100%", "System")
-                .set_draw_border(false)
-                .begin(frame);
-
-            guise::checkbox(
+        if let Some((panel, _)) = guise::begin_panel_with_layout_options(
+            frame,
+            line!(),
+            "100%",
+            "48%",
+            "Panel header text",
+            guise::Layout::Horizontal,
+            &guise::PanelOptions {
+                draw_padding: false,
+                ..guise::PanelOptions::default()
+            },
+        ) {
+            if let Some((panel, _)) = guise::begin_panel_with_layout_options(
                 frame,
-                line!(),
-                &mut state.poll_platform_events,
-                "Poll Platform Events",
-            );
-
-            guise::separator(frame, line!());
-
-            guise::text(
-                frame,
-                line!(),
-                fmt!(
-                    s,
-                    "Button click count {}\nText Input submit count {}\nText Input cancel count {}",
-                    state.button_click_count,
-                    state.text_input_submit_count,
-                    state.text_input_cancel_count,
-                ),
-            );
-
-            guise::separator(frame, line!());
-
-            guise::text_with_align(
-                frame,
-                line!(),
-                fmt!(
-                    s,
-                    "running time: {:.3}s\nframe count:  {}\nframe build time: {:.3}/{:.3}s \
-                     (current/max)\nframe total time: {:.3}s\nframe ctrl count: {}\nwant capture \
-                     keyboard {}\nwant capture mouse {}",
-                    time,
-                    stats.frame_count,
-                    stats.frame_build_duration.as_secs_f32(),
-                    state.graph_frame_build_max,
-                    stats.frame_total_duration.as_secs_f32(),
-                    stats.frame_ctrl_count,
-                    stats.want_capture_keyboard,
-                    stats.want_capture_mouse,
-                ),
-                guise::Align::Start,
-            );
-
-            guise::end_panel(frame);
-        }
-
-        {
-            guise::Panel::new(
                 line!(),
                 "50%",
                 "100%",
+                "System",
+                guise::Layout::Vertical,
+                &guise::PanelOptions {
+                    draw_border: false,
+                    ..guise::PanelOptions::default()
+                },
+            ) {
+                guise::checkbox(
+                    frame,
+                    line!(),
+                    &mut state.poll_platform_events,
+                    "Poll Platform Events",
+                );
+
+                guise::separator(frame, line!());
+
+                guise::text(
+                    frame,
+                    line!(),
+                    fmt!(
+                        s,
+                        "Button click count {}\nText Input submit count {}\nText Input cancel \
+                         count {}",
+                        state.button_click_count,
+                        state.text_input_submit_count,
+                        state.text_input_cancel_count,
+                    ),
+                );
+
+                guise::separator(frame, line!());
+
+                guise::text_with_align(
+                    frame,
+                    line!(),
+                    fmt!(
+                        s,
+                        "running time: {:.3}s\nframe count:  {}\nframe build time: {:.3}/{:.3}s \
+                         (current/max)\nframe total time: {:.3}s\nframe ctrl count: {}\nwant \
+                         capture keyboard {}\nwant capture mouse {}",
+                        time,
+                        stats.frame_count,
+                        stats.frame_build_duration.as_secs_f32(),
+                        state.graph_frame_build_max,
+                        stats.frame_total_duration.as_secs_f32(),
+                        stats.frame_ctrl_count,
+                        stats.want_capture_keyboard,
+                        stats.want_capture_mouse,
+                    ),
+                    guise::Align::Start,
+                );
+
+                panel.end(frame);
+            }
+
+            if let Some((panel, _)) = guise::begin_panel_with_layout_fit_height_options(
+                frame,
+                line!(),
+                "50%",
                 "A few buttons for your consideration",
-            )
-            .set_resize_height_to_fit_content(true)
-            .set_draw_border(false)
-            .begin(frame);
-
-            if guise::image_button_with_tooltip(frame, line!(), 0, "An image button") {
-                state.button_click_count += 1;
-            }
-
-            if guise::button_with_tooltip(frame, line!(), "A button with tooltip", TEXT) {
-                state.button_click_count += 1;
-            }
-
-            for i in 0..=10 {
-                frame.push_id_namespace(i);
-                if guise::button(frame, line!(), fmt!(s, "Button {}", i)) {
+                guise::Layout::Vertical,
+                &guise::PanelOptions {
+                    draw_border: false,
+                    ..guise::PanelOptions::default()
+                },
+            ) {
+                if guise::image_button_with_tooltip(frame, line!(), 0, "An image button") {
                     state.button_click_count += 1;
                 }
-                frame.pop_id_namespace();
+
+                if guise::button_with_tooltip(frame, line!(), "A button with tooltip", TEXT) {
+                    state.button_click_count += 1;
+                }
+
+                for i in 0..=10 {
+                    frame.push_id_namespace(i);
+                    if guise::button(frame, line!(), fmt!(s, "Button {}", i)) {
+                        state.button_click_count += 1;
+                    }
+                    frame.pop_id_namespace();
+                }
+
+                panel.end(frame);
             }
 
-            guise::end_panel(frame);
+            panel.end(frame);
         }
-
-        guise::end_panel(frame);
 
         guise::separator(frame, line!());
 
-        {
-            guise::Panel::new(line!(), "100%", "48%", "Another panel header text")
-                .set_layout(guise::Layout::Horizontal)
-                .set_draw_padding(false)
-                .set_draw_header(false)
-                .begin(frame);
-
-            {
-                guise::Panel::new(line!(), "50%", "100%", "Drawing Text")
-                    .set_draw_border(false)
-                    .begin(frame);
-
+        if let Some((panel, _)) = guise::begin_panel_with_layout_options(
+            frame,
+            line!(),
+            "100%",
+            "48%",
+            "Another panel header text",
+            guise::Layout::Horizontal,
+            &guise::PanelOptions {
+                draw_border: false,
+                draw_header: false,
+                ..guise::PanelOptions::default()
+            },
+        ) {
+            if let Some((panel, _)) = guise::begin_panel_with_layout_options(
+                frame,
+                line!(),
+                "50%",
+                "100%",
+                "Drawing Text",
+                guise::Layout::Vertical,
+                &guise::PanelOptions {
+                    draw_border: false,
+                    ..guise::PanelOptions::default()
+                },
+            ) {
                 for i in 0..3 {
                     let i = i * 3;
                     let j = i + 1;
@@ -186,15 +215,21 @@ pub fn draw_ui<A: Allocator + Clone>(
                     guise::text_with_align(frame, k, TEXT, guise::Align::End);
                 }
 
-                guise::end_panel(frame);
+                panel.end(frame);
             }
 
-            {
-                let mut panel_ctrl = guise::Panel::new(line!(), "50%", "100%", "Drawing Graphs")
-                    .set_draw_border(false)
-                    .set_draw_header(true)
-                    .begin(frame);
-
+            if let Some((panel, mut panel_ctrl)) = guise::begin_panel_with_layout_options(
+                frame,
+                line!(),
+                "50%",
+                "100%",
+                "Drawing Graphs",
+                guise::Layout::Vertical,
+                &guise::PanelOptions {
+                    draw_border: false,
+                    ..guise::PanelOptions::default()
+                },
+            ) {
                 let size = panel_ctrl.inner_size();
                 let width = size.x;
                 let height = size.y;
@@ -320,10 +355,10 @@ pub fn draw_ui<A: Allocator + Clone>(
                     );
                 }
 
-                guise::end_panel(frame);
+                panel.end(frame);
             }
 
-            guise::end_panel(frame);
+            panel.end(frame);
         }
 
         window.end(frame);
@@ -557,21 +592,15 @@ pub fn draw_ui<A: Allocator + Clone>(
     }
 
     if let Some((window, _)) = guise::begin_window(frame, line!(), "1%", "1%", 350.0, 300.0) {
-        guise::Panel::new(line!(), "100%", "100%", "RESIZE_TO_FIT test")
-            .set_resize_height_to_fit_content(true)
-            .begin(frame);
+        if let Some((panel, _)) =
+            guise::begin_panel_with_fit_height(frame, line!(), "100%", "RESIZE_TO_FIT test")
+        {
+            guise::button(frame, line!(), "Hello");
+            guise::text(frame, line!(), "Can you see me?");
+            guise::button(frame, line!(), "Bye");
 
-        // TODO(yan): The "Can you see me?" inside has inconsistent
-        // padding/margin if the panel starts with 0 height and grows because of
-        // the RESIZE_TO_FIT_VERTICAL flag. It works properly if the height is
-        // large enough to contain everything from the start and then shrinks
-        // becuase of RESIZE_TO_FIT_VERTICAL.
-        guise::button(frame, line!(), "Hello");
-        guise::text(frame, line!(), "Can you see me?");
-        guise::button(frame, line!(), "Bye");
-
-        guise::end_panel(frame);
-
+            panel.end(frame);
+        }
         window.end(frame);
     }
 }

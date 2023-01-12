@@ -5,13 +5,33 @@ use crate::core::{Align, Ctrl, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::size::Size;
 use crate::widgets::theme::Theme;
 
+const DEFAULT_OPTIONS: PanelOptions = PanelOptions {
+    draw_padding: true,
+    draw_border: true,
+    draw_header: true,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PanelOptions {
+    pub draw_padding: bool,
+    pub draw_border: bool,
+    pub draw_header: bool,
+}
+
+impl Default for PanelOptions {
+    fn default() -> Self {
+        DEFAULT_OPTIONS
+    }
+}
+
+#[inline]
 pub fn begin_panel<'f, W, H, A>(
     frame: &'f mut Frame<A>,
     id: u32,
     width: W,
     height: H,
     label: &str,
-) -> Ctrl<'f, A>
+) -> Option<(Panel, Ctrl<'f, A>)>
 where
     W: TryInto<Size>,
     H: TryInto<Size>,
@@ -19,188 +39,325 @@ where
     <H as TryInto<Size>>::Error: Debug,
     A: Allocator + Clone,
 {
-    Panel::new(id, width, height, label).begin(frame)
+    let width = width.try_into().unwrap();
+    let height = height.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        height,
+        label,
+        Layout::Vertical,
+        false,
+        &DEFAULT_OPTIONS,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
 }
 
-pub fn end_panel<A: Allocator + Clone>(frame: &mut Frame<A>) {
-    frame.pop_ctrl();
-    frame.pop_ctrl();
+#[inline]
+pub fn begin_panel_with_layout<'f, W, H, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    height: H,
+    label: &str,
+    layout: Layout,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    H: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+    let height = height.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        height,
+        label,
+        layout,
+        false,
+        &DEFAULT_OPTIONS,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
 }
 
-pub struct Panel<'a> {
+#[inline]
+pub fn begin_panel_with_fit_height<'f, W, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    label: &str,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        Size::new_absolute(0.0),
+        label,
+        Layout::Vertical,
+        true,
+        &DEFAULT_OPTIONS,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
+}
+
+#[inline]
+pub fn begin_panel_with_layout_fit_height<'f, W, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    label: &str,
+    layout: Layout,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        Size::new_absolute(0.0),
+        label,
+        layout,
+        true,
+        &DEFAULT_OPTIONS,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
+}
+
+#[inline]
+pub fn begin_panel_with_layout_options<'f, W, H, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    height: H,
+    label: &str,
+    layout: Layout,
+    options: &PanelOptions,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    H: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+    let height = height.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        height,
+        label,
+        layout,
+        false,
+        options,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
+}
+
+#[inline]
+pub fn begin_panel_with_layout_fit_height_options<'f, W, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    label: &str,
+    layout: Layout,
+    options: &PanelOptions,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame,
+        id,
+        width,
+        Size::new_absolute(0.0),
+        label,
+        layout,
+        true,
+        options,
+        &Theme::DEFAULT,
+    );
+
+    Some((Panel(false), ctrl))
+}
+
+#[inline]
+pub fn begin_panel_with_layout_options_theme<'f, W, H, A>(
+    frame: &'f mut Frame<A>,
+    id: u32,
+    width: W,
+    height: H,
+    label: &str,
+    layout: Layout,
+    options: &PanelOptions,
+    theme: &Theme,
+) -> Option<(Panel, Ctrl<'f, A>)>
+where
+    W: TryInto<Size>,
+    H: TryInto<Size>,
+    <W as TryInto<Size>>::Error: Debug,
+    <H as TryInto<Size>>::Error: Debug,
+    A: Allocator + Clone,
+{
+    let width = width.try_into().unwrap();
+    let height = height.try_into().unwrap();
+
+    let ctrl = do_panel_and_plot_mandelbrot_set(
+        frame, id, width, height, label, layout, false, options, theme,
+    );
+
+    Some((Panel(false), ctrl))
+}
+
+pub struct Panel(bool);
+
+impl Panel {
+    pub fn end<A: Allocator + Clone>(mut self, frame: &mut Frame<A>) {
+        assert!(!self.0);
+
+        frame.pop_ctrl();
+        frame.pop_ctrl();
+        self.0 = true;
+    }
+}
+
+impl Drop for Panel {
+    fn drop(&mut self) {
+        debug_assert!(self.0)
+    }
+}
+
+fn do_panel_and_plot_mandelbrot_set<'f, A: Allocator + Clone>(
+    frame: &'f mut Frame<A>,
     id: u32,
     width: Size,
     height: Size,
-    label: &'a str,
-
-    resize_height_to_fit_content: bool,
+    label: &str,
     layout: Layout,
-    draw_padding: bool,
-    draw_border: bool,
-    draw_header: bool,
+    fit_height: bool,
+    options: &PanelOptions,
+    theme: &Theme,
+) -> Ctrl<'f, A> {
+    let parent_size = frame.ctrl_inner_size();
+    let outer_flags = if fit_height {
+        CtrlFlags::RESIZE_TO_FIT_VERTICAL
+    } else {
+        CtrlFlags::NONE
+    };
+    let body_flags = if fit_height {
+        CtrlFlags::CAPTURE_SCROLL | CtrlFlags::RESIZE_TO_FIT_VERTICAL
+    } else {
+        CtrlFlags::CAPTURE_SCROLL
+    };
 
-    theme: &'a Theme,
-}
+    let outer_width = f32::max(0.0, width.resolve(parent_size.x) - 2.0 * theme.panel_margin);
+    let outer_height = f32::max(
+        0.0,
+        height.resolve(parent_size.y) - 2.0 * theme.panel_margin,
+    );
 
-impl<'a> Panel<'a> {
-    pub fn new<W, H>(id: u32, width: W, height: H, label: &'a str) -> Self
-    where
-        W: TryInto<Size>,
-        H: TryInto<Size>,
-        <W as TryInto<Size>>::Error: Debug,
-        <H as TryInto<Size>>::Error: Debug,
-    {
-        let width = width.try_into().unwrap();
-        let height = height.try_into().unwrap();
+    let mut outer_ctrl = frame.push_ctrl(id);
+    outer_ctrl.set_flags(outer_flags);
+    outer_ctrl.set_layout(Layout::Vertical);
+    outer_ctrl.set_rect(Rect::new(0.0, 0.0, outer_width, outer_height));
 
-        Self {
-            id,
-            width,
-            height,
-            label,
+    outer_ctrl.set_padding(0.0);
+    outer_ctrl.set_border(if options.draw_border {
+        theme.panel_border
+    } else {
+        0.0
+    });
+    outer_ctrl.set_margin(theme.panel_margin);
 
-            resize_height_to_fit_content: false,
-            layout: Layout::Vertical,
-            draw_padding: true,
-            draw_border: true,
-            draw_header: true,
-
-            theme: &Theme::DEFAULT,
-        }
+    if options.draw_border {
+        outer_ctrl.set_draw_self(true);
+        outer_ctrl.set_draw_self_border_color(theme.panel_border_color);
     }
 
-    pub fn set_resize_height_to_fit_content(&mut self, resize: bool) -> &mut Self {
-        self.resize_height_to_fit_content = resize;
-        self
-    }
+    if options.draw_header {
+        let mut header_ctrl = frame.push_ctrl(0);
+        header_ctrl.set_flags(CtrlFlags::NONE);
+        header_ctrl.set_layout(Layout::Free);
+        header_ctrl.set_rect(Rect::new(0.0, 0.0, outer_width, theme.panel_header_height));
+        header_ctrl.set_padding(0.0);
+        header_ctrl.set_border(0.0);
+        header_ctrl.set_margin(0.0);
 
-    pub fn set_layout(&mut self, layout: Layout) -> &mut Self {
-        self.layout = layout;
-        self
-    }
+        header_ctrl.set_draw_self(true);
+        header_ctrl.set_draw_self_background_color(theme.panel_header_background_color);
 
-    // This is a shorthand for setting the padding-width to zero in theme.
-    pub fn set_draw_padding(&mut self, draw_padding: bool) -> &mut Self {
-        self.draw_padding = draw_padding;
-        self
-    }
-
-    // This is a shorthand for setting the border-width to zero in theme.
-    pub fn set_draw_border(&mut self, draw_border: bool) -> &mut Self {
-        self.draw_border = draw_border;
-        self
-    }
-
-    pub fn set_draw_header(&mut self, draw_header: bool) -> &mut Self {
-        self.draw_header = draw_header;
-        self
-    }
-
-    pub fn set_theme(&mut self, theme: &'a Theme) -> &mut Self {
-        self.theme = theme;
-        self
-    }
-
-    pub fn begin<'f, A: Allocator + Clone>(&self, frame: &'f mut Frame<A>) -> Ctrl<'f, A> {
-        let parent_size = frame.ctrl_inner_size();
-        let outer_flags = if self.resize_height_to_fit_content {
-            CtrlFlags::RESIZE_TO_FIT_VERTICAL
-        } else {
-            CtrlFlags::NONE
-        };
-        let body_flags = if self.resize_height_to_fit_content {
-            CtrlFlags::CAPTURE_SCROLL | CtrlFlags::RESIZE_TO_FIT_VERTICAL
-        } else {
-            CtrlFlags::CAPTURE_SCROLL
-        };
-
-        let outer_width = f32::max(
-            0.0,
-            self.width.resolve(parent_size.x) - 2.0 * self.theme.panel_margin,
-        );
-        let outer_height = f32::max(
-            0.0,
-            self.height.resolve(parent_size.y) - 2.0 * self.theme.panel_margin,
-        );
-
-        let mut outer_ctrl = frame.push_ctrl(self.id);
-        outer_ctrl.set_flags(outer_flags);
-        outer_ctrl.set_layout(Layout::Vertical);
-        outer_ctrl.set_rect(Rect::new(0.0, 0.0, outer_width, outer_height));
-
-        outer_ctrl.set_padding(0.0);
-        outer_ctrl.set_border(if self.draw_border {
-            self.theme.panel_border
-        } else {
-            0.0
-        });
-        outer_ctrl.set_margin(self.theme.panel_margin);
-
-        if self.draw_border {
-            outer_ctrl.set_draw_self(true);
-            outer_ctrl.set_draw_self_border_color(self.theme.panel_border_color);
+        if label.len() > 0 {
+            header_ctrl.draw_text(
+                label,
+                Align::Center,
+                Align::Center,
+                Wrap::Word,
+                theme.panel_header_text_color,
+            );
         }
 
-        if self.draw_header {
-            let mut header_ctrl = frame.push_ctrl(0);
-            header_ctrl.set_flags(CtrlFlags::NONE);
-            header_ctrl.set_layout(Layout::Free);
-            header_ctrl.set_rect(Rect::new(
-                0.0,
-                0.0,
-                outer_width,
-                self.theme.panel_header_height,
-            ));
-            header_ctrl.set_padding(0.0);
-            header_ctrl.set_border(0.0);
-            header_ctrl.set_margin(0.0);
-
-            header_ctrl.set_draw_self(true);
-            header_ctrl.set_draw_self_background_color(self.theme.panel_header_background_color);
-
-            if self.label.len() > 0 {
-                header_ctrl.draw_text(
-                    self.label,
-                    Align::Center,
-                    Align::Center,
-                    Wrap::Word,
-                    self.theme.panel_header_text_color,
-                );
-            }
-
-            frame.pop_ctrl();
-        }
-
-        let mut body_ctrl = frame.push_ctrl(1);
-        body_ctrl.set_flags(body_flags);
-        body_ctrl.set_layout(self.layout);
-        body_ctrl.set_rect(Rect::new(
-            0.0,
-            0.0,
-            outer_width,
-            if self.draw_header {
-                f32::max(0.0, outer_height - self.theme.panel_header_height)
-            } else {
-                outer_height
-            },
-        ));
-        body_ctrl.set_padding(if self.draw_padding {
-            self.theme.panel_padding
-        } else {
-            0.0
-        });
-        body_ctrl.set_border(0.0);
-        body_ctrl.set_margin(0.0);
-
-        body_ctrl.set_draw_self(true);
-        body_ctrl.set_draw_self_border_color(self.theme.panel_border_color);
-        body_ctrl.set_draw_self_background_color(self.theme.panel_background_color);
-
-        body_ctrl
-    }
-
-    pub fn end<A: Allocator + Clone>(&self, frame: &mut Frame<A>) {
-        frame.pop_ctrl();
         frame.pop_ctrl();
     }
+
+    let mut body_ctrl = frame.push_ctrl(1);
+    body_ctrl.set_flags(body_flags);
+    body_ctrl.set_layout(layout);
+    body_ctrl.set_rect(Rect::new(
+        0.0,
+        0.0,
+        outer_width,
+        if options.draw_header {
+            f32::max(0.0, outer_height - theme.panel_header_height)
+        } else {
+            outer_height
+        },
+    ));
+    body_ctrl.set_padding(if options.draw_padding {
+        theme.panel_padding
+    } else {
+        0.0
+    });
+    body_ctrl.set_border(0.0);
+    body_ctrl.set_margin(0.0);
+
+    body_ctrl.set_draw_self(true);
+    body_ctrl.set_draw_self_border_color(theme.panel_border_color);
+    body_ctrl.set_draw_self_background_color(theme.panel_background_color);
+
+    body_ctrl
 }
