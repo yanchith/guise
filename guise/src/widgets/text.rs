@@ -3,10 +3,12 @@ use core::alloc::Allocator;
 use crate::core::{Align, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
+#[inline]
 pub fn text<A: Allocator + Clone>(frame: &mut Frame<A>, id: u32, text: &str) {
     text_with_align_theme(frame, id, text, Align::Center, &Theme::DEFAULT)
 }
 
+#[inline]
 pub fn text_with_align<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
