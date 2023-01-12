@@ -455,14 +455,13 @@ pub fn draw_ui<A: Allocator + Clone>(
             DAMAGE_TYPES,
             &mut state.dropdown1_selected_option,
         );
-        guise::Dropdown::new(
+        guise::dropdown_with_unselect(
+            frame,
             line!(),
             "Damage Type (allows unselect)",
             DAMAGE_TYPES,
             &mut state.dropdown2_selected_option,
-        )
-        .set_allow_unselect(true)
-        .show(frame);
+        );
 
         guise::separator(frame, line!());
         guise::text(frame, line!(), "Text inputs");
