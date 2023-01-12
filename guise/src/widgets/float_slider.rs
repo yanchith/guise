@@ -317,7 +317,7 @@ fn do_float_slider_and_take_kids_to_school<A: Allocator + Clone>(
 
         let hovered = inner_ctrl.is_hovered();
         let active = inner_ctrl.is_active();
-        let state = get_state(inner_ctrl.state());
+        let state = cast_state(inner_ctrl.state());
 
         let (active, changed_i) = if active {
             let value = state.value;
@@ -339,7 +339,7 @@ fn do_float_slider_and_take_kids_to_school<A: Allocator + Clone>(
         } else if hovered && inputs_pressed == Inputs::MB_LEFT {
             inner_ctrl.set_active(true);
 
-            let state = get_state_mut(inner_ctrl.state_mut());
+            let state = cast_state_mut(inner_ctrl.state_mut());
             state.x = cursor_position.x;
             state.value = *value_mut_slot;
 
@@ -396,10 +396,10 @@ struct State {
     value: f32,
 }
 
-fn get_state(state: &CtrlState) -> &State {
+fn cast_state(state: &CtrlState) -> &State {
     bytemuck::from_bytes(&state[..mem::size_of::<State>()])
 }
 
-fn get_state_mut(state: &mut CtrlState) -> &mut State {
+fn cast_state_mut(state: &mut CtrlState) -> &mut State {
     bytemuck::from_bytes_mut(&mut state[..mem::size_of::<State>()])
 }

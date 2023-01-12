@@ -258,7 +258,7 @@ where
     let hovered = inner_ctrl.is_hovered();
     let active_orig = inner_ctrl.is_active();
 
-    let state = get_state(inner_ctrl.state());
+    let state = cast_state(inner_ctrl.state());
     let mut text_cursor = usize::clamp(state.text_cursor, 0, text.len());
     let mut text_selection_start = usize::clamp(state.text_selection_start, 0, text.len());
     let mut text_selection_end = usize::clamp(state.text_selection_end, 0, text.len());
@@ -531,7 +531,7 @@ where
             (active_orig, false, TextInputAction::None)
         };
 
-    let mut state = get_state_mut(inner_ctrl.state_mut());
+    let mut state = cast_state_mut(inner_ctrl.state_mut());
     state.text_cursor = text_cursor;
     state.text_selection_start = text_selection_start;
     state.text_selection_end = text_selection_end;
@@ -691,7 +691,7 @@ where
     // be to tell the button we don't want it to steal focus from us, in which
     // case we could rely on our own active state. This would help dropdown too.
     if changed_from_autocomplete || deactivated_from_kb {
-        let state = get_state_mut(frame.ctrl_state_mut());
+        let state = cast_state_mut(frame.ctrl_state_mut());
         state.autocomplete_open = AUTOCOMPLETE_CLOSED;
     }
 
@@ -715,11 +715,11 @@ struct State {
     _pad0: u32,
 }
 
-fn get_state(state: &CtrlState) -> &State {
+fn cast_state(state: &CtrlState) -> &State {
     bytemuck::from_bytes(&state[..mem::size_of::<State>()])
 }
 
-fn get_state_mut(state: &mut CtrlState) -> &mut State {
+fn cast_state_mut(state: &mut CtrlState) -> &mut State {
     bytemuck::from_bytes_mut(&mut state[..mem::size_of::<State>()])
 }
 
@@ -733,7 +733,7 @@ fn draw<A: Allocator + Clone>(
     valign: Align,
     color: u32,
 ) {
-    let state = get_state(ctrl.state());
+    let state = cast_state(ctrl.state());
     let text_cursor = state.text_cursor;
     let text_selection_start = usize::min(state.text_selection_start, state.text_selection_end);
     let text_selection_end = usize::max(state.text_selection_start, state.text_selection_end);
