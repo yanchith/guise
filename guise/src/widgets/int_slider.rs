@@ -9,6 +9,7 @@ use crate::convert::cast_u32;
 use crate::core::{Align, CtrlFlags, CtrlState, Frame, Inputs, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
+#[inline]
 pub fn int_slider<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -27,6 +28,7 @@ pub fn int_slider<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int_slider_with_speed_min_max<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -48,6 +50,7 @@ pub fn int_slider_with_speed_min_max<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -70,6 +73,7 @@ pub fn int_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int2_slider<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -88,6 +92,7 @@ pub fn int2_slider<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int2_slider_with_speed_min_max<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -100,6 +105,7 @@ pub fn int2_slider_with_speed_min_max<A: Allocator + Clone>(
     do_int_slider_and_take_kids_to_school(frame, id, value, label, speed, min, max, &Theme::DEFAULT)
 }
 
+#[inline]
 pub fn int2_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -113,6 +119,7 @@ pub fn int2_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     do_int_slider_and_take_kids_to_school(frame, id, value, label, speed, min, max, theme)
 }
 
+#[inline]
 pub fn int3_slider<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -131,6 +138,7 @@ pub fn int3_slider<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int3_slider_with_speed_min_max<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -143,6 +151,7 @@ pub fn int3_slider_with_speed_min_max<A: Allocator + Clone>(
     do_int_slider_and_take_kids_to_school(frame, id, value, label, speed, min, max, &Theme::DEFAULT)
 }
 
+#[inline]
 pub fn int3_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -156,6 +165,7 @@ pub fn int3_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     do_int_slider_and_take_kids_to_school(frame, id, value, label, speed, min, max, theme)
 }
 
+#[inline]
 pub fn int4_slider<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -174,6 +184,7 @@ pub fn int4_slider<A: Allocator + Clone>(
     )
 }
 
+#[inline]
 pub fn int4_slider_with_speed_min_max<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,
@@ -186,6 +197,7 @@ pub fn int4_slider_with_speed_min_max<A: Allocator + Clone>(
     do_int_slider_and_take_kids_to_school(frame, id, value, label, speed, min, max, &Theme::DEFAULT)
 }
 
+#[inline]
 pub fn int4_slider_with_speed_min_max_theme<A: Allocator + Clone>(
     frame: &mut Frame<A>,
     id: u32,

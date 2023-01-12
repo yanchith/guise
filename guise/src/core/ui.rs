@@ -294,10 +294,6 @@ impl BitOrAssign for CtrlFlags {
     }
 }
 
-// TODO(yan): The manual byte peeking and poking is a lot of unnecessary and
-// error-prone code. Also alignment sometimes sucks. Let's just view it as a
-// mutable slice and use casts to state structs instead. We already do it in
-// text input, but we should everywhere.
 pub type CtrlState = [u8; 64];
 
 #[derive(Debug, Clone, PartialEq)]
