@@ -334,6 +334,10 @@ struct CtrlNode {
     // as possible, e.g. just enough to satisfy the larger-but-still-small
     // controls, like Window, and create optional extra state storage for
     // controls that require a lot more.
+    //
+    // Alternatively, we can do memory size-classed slabs with freelists outside
+    // of CtrlNode, and make memory node contain either no state memory at all,
+    // or just the smallest size-class.
     state: CtrlState,
 
     draw_self: bool,
