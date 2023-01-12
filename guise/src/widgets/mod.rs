@@ -1,8 +1,8 @@
 mod button;
 mod checkbox;
-mod drag_float;
-mod drag_int;
 mod dropdown;
+mod float_slider;
+mod int_slider;
 mod panel;
 mod separator;
 mod size;
@@ -14,9 +14,9 @@ mod window;
 
 pub use button::*;
 pub use checkbox::*;
-pub use drag_float::*;
-pub use drag_int::*;
 pub use dropdown::*;
+pub use float_slider::*;
+pub use int_slider::*;
 pub use panel::*;
 pub use separator::*;
 pub use size::*;

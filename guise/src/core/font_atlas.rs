@@ -363,7 +363,7 @@ impl<A: Allocator + Clone> FontAtlas<A> {
                     rect: Rect::new(
                         unscaled_metrics.bounds.xmin,
                         // NB: Flip Y
-                        - unscaled_metrics.bounds.height - unscaled_metrics.bounds.ymin,
+                        -unscaled_metrics.bounds.height - unscaled_metrics.bounds.ymin,
                         unscaled_metrics.bounds.width,
                         unscaled_metrics.bounds.height,
                     ),

@@ -50,16 +50,16 @@ pub struct State {
     pub graph_index_count_max: usize,
     pub text_input_heap: guise::VecString<Global>,
     pub text_input_inline: ArrayString<64>,
-    pub drag_float_value: f32,
-    pub drag_float_value_clamped: f32,
-    pub drag_float2_value: [f32; 2],
-    pub drag_float3_value: [f32; 3],
-    pub drag_float4_value: [f32; 4],
-    pub drag_int_value: i32,
-    pub drag_int_value_clamped: i32,
-    pub drag_int2_value: [i32; 2],
-    pub drag_int3_value: [i32; 3],
-    pub drag_int4_value: [i32; 4],
+    pub float_slider_value: f32,
+    pub float_slider_value_clamped: f32,
+    pub float_slider2_value: [f32; 2],
+    pub float_slider3_value: [f32; 3],
+    pub float_slider4_value: [f32; 4],
+    pub int_slider_value: i32,
+    pub int_slider_value_clamped: i32,
+    pub int_slider2_value: [i32; 2],
+    pub int_slider3_value: [i32; 3],
+    pub int_slider4_value: [i32; 4],
     pub dropdown1_selected_option: Option<usize>,
     pub dropdown2_selected_option: Option<usize>,
 }
@@ -483,48 +483,48 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::separator(frame, line!());
         guise::text(frame, line!(), "Sliders");
 
-        guise::drag_float(
+        guise::float_slider(
             frame,
             line!(),
-            &mut state.drag_float_value,
+            &mut state.float_slider_value,
             "Fast Float (unclamped)",
         );
 
-        guise::DragFloat::new(
-            line!(),
-            &mut state.drag_float_value_clamped,
-            "Slow Float (clamped)",
-        )
-        .set_speed(0.00001)
-        .set_min(0.0)
-        .set_max(1.0)
-        .set_display_precision(6)
-        .show(frame);
-
-        guise::drag_float2(frame, line!(), &mut state.drag_float2_value, "Vec2");
-        guise::drag_float3(frame, line!(), &mut state.drag_float3_value, "Vec3");
-        guise::drag_float4(frame, line!(), &mut state.drag_float4_value, "Vec4");
-
-        guise::drag_int(
+        guise::float_slider_with_speed_min_max_precision(
             frame,
             line!(),
-            &mut state.drag_int_value,
+            &mut state.float_slider_value_clamped,
+            "Slow Float (clamped)",
+            0.00001,
+            0.0,
+            0.1,
+            6,
+        );
+
+        guise::float2_slider(frame, line!(), &mut state.float_slider2_value, "Vec2");
+        guise::float3_slider(frame, line!(), &mut state.float_slider3_value, "Vec3");
+        guise::float4_slider(frame, line!(), &mut state.float_slider4_value, "Vec4");
+
+        guise::int_slider(
+            frame,
+            line!(),
+            &mut state.int_slider_value,
             "Fast Int (unclamped)",
         );
 
-        guise::DragInt::new(
+        guise::int_slider_with_speed_min_max(
+            frame,
             line!(),
-            &mut state.drag_int_value_clamped,
+            &mut state.int_slider_value_clamped,
             "Slow Int (clamped)",
-        )
-        .set_speed(0.05)
-        .set_min(0)
-        .set_max(100)
-        .show(frame);
+            0.05,
+            0,
+            100,
+        );
 
-        guise::drag_int2(frame, line!(), &mut state.drag_int2_value, "IVec2");
-        guise::drag_int3(frame, line!(), &mut state.drag_int3_value, "IVec3");
-        guise::drag_int4(frame, line!(), &mut state.drag_int4_value, "IVec4");
+        guise::int2_slider(frame, line!(), &mut state.int_slider2_value, "IVec2");
+        guise::int3_slider(frame, line!(), &mut state.int_slider3_value, "IVec3");
+        guise::int4_slider(frame, line!(), &mut state.int_slider4_value, "IVec4");
 
         guise::end_window(frame);
     }
