@@ -3,6 +3,7 @@ use core::alloc::Allocator;
 use crate::core::{Align, CtrlFlags, Frame, Layout, Rect, Wrap};
 use crate::widgets::theme::Theme;
 
+#[inline]
 pub fn tooltip<A: Allocator + Clone>(frame: &mut Frame<A>, id: u32, text: &str) {
     tooltip_with_theme(frame, id, text, &Theme::DEFAULT)
 }
