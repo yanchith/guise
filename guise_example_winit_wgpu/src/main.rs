@@ -61,8 +61,11 @@ fn main() {
 
     init_clipboard_or_not();
 
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
-    let surface = unsafe { instance.create_surface(&window) };
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+        backends: wgpu::Backends::PRIMARY,
+        dx12_shader_compiler: wgpu::Dx12Compiler::Fxc,
+    });
+    let surface = unsafe { instance.create_surface(&window).unwrap() };
     let adapter = pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
         power_preference: wgpu::PowerPreference::LowPower,
         force_fallback_adapter: false,
@@ -93,6 +96,7 @@ fn main() {
         height: initial_window_height,
         present_mode: surface_present_mode,
         alpha_mode: wgpu::CompositeAlphaMode::Auto,
+        view_formats: Vec::new(),
     });
 
     let mut ui = {
@@ -440,6 +444,7 @@ fn main() {
                         height: window_height,
                         present_mode: surface_present_mode,
                         alpha_mode: wgpu::CompositeAlphaMode::Auto,
+                        view_formats: Vec::new(),
                     });
                 }
 
