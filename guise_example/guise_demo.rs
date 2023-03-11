@@ -55,11 +55,11 @@ pub struct State {
     pub float_slider2_value: [f32; 2],
     pub float_slider3_value: [f32; 3],
     pub float_slider4_value: [f32; 4],
-    pub int_slider_value: i32,
-    pub int_slider_value_clamped: i32,
-    pub int_slider2_value: [i32; 2],
-    pub int_slider3_value: [i32; 3],
-    pub int_slider4_value: [i32; 4],
+    pub int_value: i32,
+    pub int_value_clamped: i32,
+    pub int2_value: [i32; 2],
+    pub int3_value: [i32; 3],
+    pub int4_value: [i32; 4],
     pub dropdown1_selected_option: Option<usize>,
     pub dropdown2_selected_option: Option<usize>,
 }
@@ -567,26 +567,29 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::float3_slider(frame, line!(), &mut state.float_slider3_value, "Vec3");
         guise::float4_slider(frame, line!(), &mut state.float_slider4_value, "Vec4");
 
-        guise::int_slider(
-            frame,
-            line!(),
-            &mut state.int_slider_value,
-            "Fast Int (unclamped)",
-        );
+        guise::int_slider(frame, line!(), &mut state.int_value, "Fast Int (unclamped)");
 
         guise::int_slider_with_speed_min_max(
             frame,
             line!(),
-            &mut state.int_slider_value_clamped,
+            &mut state.int_value_clamped,
             "Slow Int (clamped)",
             0.05,
             0,
             100,
         );
 
-        guise::int2_slider(frame, line!(), &mut state.int_slider2_value, "IVec2");
-        guise::int3_slider(frame, line!(), &mut state.int_slider3_value, "IVec3");
-        guise::int4_slider(frame, line!(), &mut state.int_slider4_value, "IVec4");
+        guise::int2_slider(frame, line!(), &mut state.int2_value, "IVec2");
+        guise::int3_slider(frame, line!(), &mut state.int3_value, "IVec3");
+        guise::int4_slider(frame, line!(), &mut state.int4_value, "IVec4");
+
+        guise::int_input(frame, line!(), &mut state.int_value, "Int (unclamped)");
+        guise::int_input(
+            frame,
+            line!(),
+            &mut state.int_value_clamped,
+            "Int (clamped)",
+        );
 
         window.end(frame);
     }
