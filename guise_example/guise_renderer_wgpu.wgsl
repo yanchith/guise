@@ -1,27 +1,22 @@
-// TODO(yan): @Cleanup This shader is currently not used, both because WGSL spec
-// changes every day and I got tired keeping up with it. Currently, the wgpu
-// backend uses GLSL shaders (in this directory), translated to SPIRV via
-// shaderc.
-
 struct TransformUniforms {
-    matrix: mat4x4<f32>;
+    matrix: mat4x4<f32>,
 };
 
 struct VertexOutput {
-    [[builtin(position)]] position:  vec4<f32>;
-    [[location(0)]]       tex_coord: vec2<f32>;
-    [[location(1)]]       color:     vec4<f32>;
+    @builtin(position) position:  vec4<f32>,
+    @location(0)       tex_coord: vec2<f32>,
+    @location(1)       color:     vec4<f32>,
 };
 
-[[group(0), binding(0)]] var<uniform> u_transform: TransformUniforms;
-[[group(1), binding(0)]] var<uniform> u_texture:   texture_2d<f32>;
-[[group(1), binding(1)]] var<uniform> u_sampler:   sampler;
+@group(0) @binding(0) var<uniform> u_transform: TransformUniforms;
+@group(1) @binding(0) var          u_texture:   texture_2d<f32>;
+@group(1) @binding(1) var          u_sampler:   sampler;
 
-[[stage(vertex)]]
+@vertex
 fn vs_main(
-    [[location(0)]] in_position:  vec2<f32>,
-    [[location(1)]] in_tex_coord: vec2<f32>,
-    [[location(2)]] in_color:     u32,
+    @location(0) in_position:  vec2<f32>,
+    @location(1) in_tex_coord: vec2<f32>,
+    @location(2) in_color:     u32,
 ) -> VertexOutput {
     var out: VertexOutput;
 
@@ -41,7 +36,7 @@ fn vs_main(
     return out;
 }
 
-[[stage(fragment)]]
-fn fs_main(in: VertexOutput) -> [[location(0)]] vec4<f32> {
+@fragment
+fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     return in.color * textureSample(u_texture, u_sampler, in.tex_coord);
 }

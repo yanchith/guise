@@ -29,19 +29,11 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(device: &wgpu::Device, render_attachment_format: wgpu::TextureFormat) -> Self {
-        // static SHADER_SOURCE: &str = include_str!("../guise_example/guise_renderer_wgpu.wgsl");
-        static VS_SOURCE: &[u32] =
-            vk_shader_macros::include_glsl!("../guise_example/guise_renderer_wgpu.vert");
-        static FS_SOURCE: &[u32] =
-            vk_shader_macros::include_glsl!("../guise_example/guise_renderer_wgpu.frag");
+        static SHADER_SOURCE: &str = include_str!("../guise_example/guise_renderer_wgpu.wgsl");
 
-        let vs_shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        let shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
-            source: wgpu::ShaderSource::SpirV(Cow::from(VS_SOURCE)),
-        });
-        let fs_shader_module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: None,
-            source: wgpu::ShaderSource::SpirV(Cow::from(FS_SOURCE)),
+            source: wgpu::ShaderSource::Wgsl(Cow::from(SHADER_SOURCE)),
         });
 
         // Create transform uniform buffer bind group
@@ -123,8 +115,8 @@ impl Renderer {
             label: None,
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
-                module: &vs_shader_module,
-                entry_point: "main",
+                module: &shader_module,
+                entry_point: "vs_main",
                 buffers: &[wgpu::VertexBufferLayout {
                     array_stride: size_of::<guise::Vertex>(),
                     step_mode: wgpu::VertexStepMode::Vertex,
@@ -166,8 +158,8 @@ impl Renderer {
                 alpha_to_coverage_enabled: false,
             },
             fragment: Some(wgpu::FragmentState {
-                module: &fs_shader_module,
-                entry_point: "main",
+                module: &shader_module,
+                entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     format: render_attachment_format,
                     blend: Some(wgpu::BlendState {
