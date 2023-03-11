@@ -20,9 +20,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
 
-    // TODO(yan): Hex literal would be nice, but I couldn't find a way to
-    // specify those in naga 0.6.0 and wgpu 0.10.1.
-    let mask: u32 = 255u; // 0xff;
+    let mask: u32 = 0xffu;
 
     out.position  = u_transform.matrix * vec4<f32>(in_position, 0.0, 1.0);
     out.tex_coord = in_tex_coord;
