@@ -50,11 +50,11 @@ pub struct State {
     pub graph_index_count_max: usize,
     pub text_input_heap: guise::VecString<Global>,
     pub text_input_inline: ArrayString<64>,
-    pub float_slider_value: f32,
-    pub float_slider_value_clamped: f32,
-    pub float_slider2_value: [f32; 2],
-    pub float_slider3_value: [f32; 3],
-    pub float_slider4_value: [f32; 4],
+    pub float_value: f32,
+    pub float_value_clamped: f32,
+    pub float2_value: [f32; 2],
+    pub float3_value: [f32; 3],
+    pub float4_value: [f32; 4],
     pub int_value: i32,
     pub int_value_clamped: i32,
     pub int2_value: [i32; 2],
@@ -548,14 +548,14 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::float_slider(
             frame,
             line!(),
-            &mut state.float_slider_value,
+            &mut state.float_value,
             "Fast Float (unclamped)",
         );
 
         guise::float_slider_with_speed_min_max_precision(
             frame,
             line!(),
-            &mut state.float_slider_value_clamped,
+            &mut state.float_value_clamped,
             "Slow Float (clamped)",
             0.00001,
             0.0,
@@ -563,9 +563,9 @@ pub fn draw_ui<A: Allocator + Clone>(
             6,
         );
 
-        guise::float2_slider(frame, line!(), &mut state.float_slider2_value, "Vec2");
-        guise::float3_slider(frame, line!(), &mut state.float_slider3_value, "Vec3");
-        guise::float4_slider(frame, line!(), &mut state.float_slider4_value, "Vec4");
+        guise::float2_slider(frame, line!(), &mut state.float2_value, "Vec2");
+        guise::float3_slider(frame, line!(), &mut state.float3_value, "Vec3");
+        guise::float4_slider(frame, line!(), &mut state.float4_value, "Vec4");
 
         guise::int_slider(frame, line!(), &mut state.int_value, "Fast Int (unclamped)");
 
@@ -583,12 +583,28 @@ pub fn draw_ui<A: Allocator + Clone>(
         guise::int3_slider(frame, line!(), &mut state.int3_value, "IVec3");
         guise::int4_slider(frame, line!(), &mut state.int4_value, "IVec4");
 
+        guise::separator(frame, line!());
+        guise::text(frame, line!(), "Number Inputs");
+
+        guise::float_input(frame, line!(), &mut state.float_value, "Float (unclamped)");
+        guise::float_input_with_min_max_precision(
+            frame,
+            line!(),
+            &mut state.float_value_clamped,
+            "Float (clamped)",
+            0.0,
+            0.1,
+            6,
+        );
+
         guise::int_input(frame, line!(), &mut state.int_value, "Int (unclamped)");
-        guise::int_input(
+        guise::int_input_with_min_max(
             frame,
             line!(),
             &mut state.int_value_clamped,
             "Int (clamped)",
+            0,
+            100,
         );
 
         window.end(frame);

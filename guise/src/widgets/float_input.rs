@@ -7,54 +7,74 @@ use arrayvec::ArrayString;
 use crate::core::Frame;
 use crate::widgets::{text_input_with_theme, Theme};
 
-// TODO(yan): int2_input, int3_input, int4_input
-// TODO(yan): Consider adding a slider handle to int inputs and removing int sliders.
+// TODO(yan): float2_input, float3_input, float4_input
+// TODO(yan): Consider adding a slider handle to float inputs and removing float sliders.
 
 #[inline]
-pub fn int_input<A>(frame: &mut Frame<A>, id: u32, value: &mut i32, label: &str) -> bool
+pub fn float_input<A>(frame: &mut Frame<A>, id: u32, value: &mut f32, label: &str) -> bool
 where
     A: Allocator + Clone,
 {
-    int_input_with_min_max_theme(frame, id, value, label, i32::MIN, i32::MAX, &Theme::DEFAULT)
+    float_input_with_min_max_precision_theme(
+        frame,
+        id,
+        value,
+        label,
+        f32::MIN,
+        f32::MAX,
+        3,
+        &Theme::DEFAULT,
+    )
 }
 
 #[inline]
-pub fn int_input_with_min_max<A>(
+pub fn float_input_with_min_max_precision<A>(
     frame: &mut Frame<A>,
     id: u32,
-    value: &mut i32,
+    value: &mut f32,
     label: &str,
-    min: i32,
-    max: i32,
+    min: f32,
+    max: f32,
+    precision: u16,
 ) -> bool
 where
     A: Allocator + Clone,
 {
-    int_input_with_min_max_theme(frame, id, value, label, min, max, &Theme::DEFAULT)
+    float_input_with_min_max_precision_theme(
+        frame,
+        id,
+        value,
+        label,
+        min,
+        max,
+        precision,
+        &Theme::DEFAULT,
+    )
 }
 
 #[inline]
-pub fn int_input_with_theme<A>(
+pub fn float_input_with_theme<A>(
     frame: &mut Frame<A>,
     id: u32,
-    value: &mut i32,
+    value: &mut f32,
     label: &str,
     theme: &Theme,
 ) -> bool
 where
     A: Allocator + Clone,
 {
-    int_input_with_min_max_theme(frame, id, value, label, i32::MIN, i32::MAX, theme)
+    float_input_with_min_max_precision_theme(frame, id, value, label, f32::MIN, f32::MAX, 3, theme)
 }
 
 #[inline]
-pub fn int_input_with_min_max_theme<A>(
+pub fn float_input_with_min_max_precision_theme<A>(
     frame: &mut Frame<A>,
     id: u32,
-    value: &mut i32,
+    value: &mut f32,
     label: &str,
-    min: i32,
-    max: i32,
+    min: f32,
+    max: f32,
+    precision: u16,
     theme: &Theme,
 ) -> bool
 where
@@ -66,11 +86,11 @@ where
     // parsing and clamping rejections. This looks jumpy onscreen. Add a
     // rejection callback to text input, so that we can reject a value before it
     // is displayed.
-    let _ = write!(buf, "{value}");
+    let _ = write!(buf, "{:.1$}", value, usize::from(precision));
     if text_input_with_theme(frame, id, &mut buf, label, theme) {
-        match i32::from_str(&buf) {
+        match f32::from_str(&buf) {
             Ok(mut new_value) => {
-                new_value = i32::clamp(new_value, min, max);
+                new_value = f32::clamp(new_value, min, max);
 
                 if *value != new_value {
                     *value = new_value;

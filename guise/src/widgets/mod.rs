@@ -1,6 +1,7 @@
 mod button;
 mod checkbox;
 mod dropdown;
+mod float_input;
 mod float_slider;
 mod int_input;
 mod int_slider;
@@ -16,6 +17,7 @@ mod window;
 pub use button::*;
 pub use checkbox::*;
 pub use dropdown::*;
+pub use float_input::*;
 pub use float_slider::*;
 pub use int_input::*;
 pub use int_slider::*;
