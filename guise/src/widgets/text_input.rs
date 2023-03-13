@@ -46,7 +46,16 @@ where
     T: TextStorage,
     A: Allocator + Clone,
 {
-    do_text_input_and_file_taxes::<_, _, &str>(frame, id, text, label, None, &[], &Theme::DEFAULT)
+    do_text_input_and_file_taxes::<_, _, &str>(
+        frame,
+        id,
+        text,
+        label,
+        None,
+        None,
+        &[],
+        &Theme::DEFAULT,
+    )
 }
 
 #[inline]
@@ -62,7 +71,16 @@ where
     A: Allocator + Clone,
     D: Deref<Target = str>,
 {
-    do_text_input_and_file_taxes(frame, id, text, label, None, autocomplete, &Theme::DEFAULT)
+    do_text_input_and_file_taxes(
+        frame,
+        id,
+        text,
+        label,
+        None,
+        None,
+        autocomplete,
+        &Theme::DEFAULT,
+    )
 }
 
 #[inline]
@@ -77,7 +95,7 @@ where
     T: TextStorage,
     A: Allocator + Clone,
 {
-    do_text_input_and_file_taxes::<_, _, &str>(frame, id, text, label, None, &[], theme)
+    do_text_input_and_file_taxes::<_, _, &str>(frame, id, text, label, None, None, &[], theme)
 }
 
 #[inline]
@@ -94,7 +112,7 @@ where
     A: Allocator + Clone,
     D: Deref<Target = str>,
 {
-    do_text_input_and_file_taxes(frame, id, text, label, None, autocomplete, theme)
+    do_text_input_and_file_taxes(frame, id, text, label, None, None, autocomplete, theme)
 }
 
 #[inline]
@@ -116,6 +134,7 @@ where
         text,
         label,
         Some(&mut callback),
+        None,
         &[],
         &Theme::DEFAULT,
     )
@@ -142,6 +161,7 @@ where
         text,
         label,
         Some(&mut callback),
+        None,
         autocomplete,
         &Theme::DEFAULT,
     )
@@ -167,6 +187,7 @@ where
         text,
         label,
         Some(&mut callback),
+        None,
         &[],
         theme,
     )
@@ -194,18 +215,22 @@ where
         text,
         label,
         Some(&mut callback),
+        None,
         autocomplete,
         theme,
     )
 }
 
+// TODO(yan): @Cleanup This is exported just that numeric inputs can pass their
+// filter-maps, but later we shuold expose this for everyone?
 #[allow(clippy::type_complexity)]
-fn do_text_input_and_file_taxes<T, A, D>(
+pub(crate) fn do_text_input_and_file_taxes<T, A, D>(
     frame: &mut Frame<A>,
     id: u32,
     text: &mut T,
     label: &str,
-    callback: Option<&mut dyn FnMut(&TextInputCallbackData, &mut T)>,
+    result_callback: Option<&mut dyn FnMut(&TextInputCallbackData, &mut T)>,
+    filter_map_callback: Option<&dyn Fn(char) -> Option<char>>,
     autocomplete: &[D],
     theme: &Theme,
 ) -> bool
@@ -217,8 +242,19 @@ where
     let parent_size = frame.ctrl_inner_size();
     let inputs_pressed = frame.inputs_pressed();
     let modifiers = frame.modifiers();
-    let received_characters: ArrayString<32> =
-        ArrayString::from(frame.received_characters()).unwrap();
+
+    let received_characters_unfiltered_count = frame.received_characters().len();
+    let mut received_characters: ArrayString<32> = ArrayString::new();
+
+    if let Some(fmc) = filter_map_callback {
+        for c in frame.received_characters().chars() {
+            if let Some(c) = fmc(c) {
+                received_characters.push(c);
+            }
+        }
+    } else {
+        received_characters.push_str(frame.received_characters());
+    }
 
     let outer_width = f32::max(0.0, parent_size.x - 2.0 * theme.text_input_margin);
     let label_width = LABEL_WIDTH_RATIO * outer_width;
@@ -266,270 +302,271 @@ where
 
     let mut deactivated_from_kb = false;
 
-    let (active, changed, action) =
-        if active_orig && (!received_characters.is_empty() || inputs_pressed != Inputs::NONE) {
-            let (handled, active, changed, action) = match inputs_pressed {
-                Inputs::KB_BACKSPACE => {
-                    if text.len() > 0 {
-                        let start = usize::min(text_selection_start, text_selection_end);
-                        let end = usize::max(text_selection_start, text_selection_end);
-
-                        if start != end {
-                            // Ok to unwrap, because we are only removing.
-                            text.try_splice(start, end - start, "").unwrap();
-
-                            text_cursor = start;
-                            text_selection_start = start;
-                            text_selection_end = start;
-                        } else if text_cursor == text.len() {
-                            let text_cursor_after_trunc = seek_prev(text_cursor, text);
-
-                            text.truncate(text_cursor_after_trunc);
-
-                            text_cursor = text_cursor_after_trunc;
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-                        } else if text_cursor > 0 {
-                            let text_cursor_after = seek_prev(text_cursor, text);
-                            let delete_count = text_cursor - text_cursor_after;
-
-                            // Ok to unwrap, because we are only removing.
-                            text.try_splice(text_cursor_after, delete_count, "")
-                                .unwrap();
-
-                            text_cursor = text_cursor_after;
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-                        }
-
-                        (true, true, true, TextInputAction::None)
-                    } else {
-                        (true, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_DELETE => {
-                    if text.len() > 0 {
-                        let last_char_index = seek_prev(text.len(), text);
-
-                        if text_selection_start != text_selection_end {
-                            let start = usize::min(text_selection_start, text_selection_end);
-                            let end = usize::max(text_selection_start, text_selection_end);
-
-                            // Ok to unwrap, because we are only removing.
-                            text.try_splice(start, end - start, "").unwrap();
-
-                            text_cursor = start;
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-                        } else if text_cursor == last_char_index {
-                            text.truncate(last_char_index);
-
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-                        } else if text_cursor < last_char_index {
-                            let delete_count = seek_next(text_cursor, text) - text_cursor;
-
-                            // Ok to unwrap, because we are only removing.
-                            text.try_splice(text_cursor, delete_count, "").unwrap();
-
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-                        }
-
-                        (true, true, true, TextInputAction::None)
-                    } else {
-                        (true, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_A => {
-                    if modifiers == Modifiers::CTRL {
-                        text_cursor = 0;
-                        text_selection_start = 0;
-                        text_selection_end = text.len();
-
-                        (true, true, false, TextInputAction::None)
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_LEFT_ARROW => {
-                    text_cursor = seek_prev(text_cursor, text);
-                    text_selection_end = text_cursor;
-                    if !modifiers.intersects(Modifiers::SHIFT) {
-                        text_selection_start = text_cursor;
-                    }
-
-                    (true, true, false, TextInputAction::None)
-                }
-
-                Inputs::KB_B => {
-                    if modifiers == Modifiers::CTRL {
-                        text_cursor = seek_prev(text_cursor, text);
-                        text_selection_start = text_cursor;
-                        text_selection_end = text_cursor;
-
-                        (true, true, false, TextInputAction::None)
-                    } else if modifiers == Modifiers::CTRL | Modifiers::SHIFT {
-                        text_cursor = seek_prev(text_cursor, text);
-                        text_selection_end = text_cursor;
-
-                        (true, true, false, TextInputAction::None)
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_RIGHT_ARROW => {
-                    text_cursor = seek_next(text_cursor, text);
-                    text_selection_end = text_cursor;
-                    if !modifiers.intersects(Modifiers::SHIFT) {
-                        text_selection_start = text_cursor;
-                    }
-
-                    (true, true, false, TextInputAction::None)
-                }
-
-                Inputs::KB_F => {
-                    if modifiers == Modifiers::CTRL {
-                        text_cursor = seek_next(text_cursor, text);
-                        text_selection_start = text_cursor;
-                        text_selection_end = text_cursor;
-
-                        (true, true, false, TextInputAction::None)
-                    } else if modifiers == Modifiers::CTRL | Modifiers::SHIFT {
-                        text_cursor = seek_next(text_cursor, text);
-                        text_selection_end = text_cursor;
-
-                        (true, true, false, TextInputAction::None)
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_X => {
-                    if modifiers == Modifiers::CTRL {
-                        if text_selection_start != text_selection_end {
-                            let start = usize::min(text_selection_start, text_selection_end);
-                            let end = usize::max(text_selection_start, text_selection_end);
-
-                            let s = &text[start..end];
-                            inner_ctrl.set_clipboard_text(s);
-
-                            text.try_splice(start, end - start, "").unwrap();
-
-                            text_cursor = start;
-                            text_selection_start = text_cursor;
-                            text_selection_end = text_cursor;
-
-                            (true, true, false, TextInputAction::None)
-                        } else {
-                            (true, true, false, TextInputAction::None)
-                        }
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_C => {
-                    if modifiers == Modifiers::CTRL {
-                        if text_selection_start != text_selection_end {
-                            let start = usize::min(text_selection_start, text_selection_end);
-                            let end = usize::max(text_selection_start, text_selection_end);
-
-                            let s = &text[start..end];
-                            inner_ctrl.set_clipboard_text(s);
-
-                            (true, true, false, TextInputAction::None)
-                        } else {
-                            (true, true, false, TextInputAction::None)
-                        }
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_V => {
-                    if modifiers == Modifiers::CTRL {
-                        // start and end can be the same index here, in which
-                        // case the splice will not remove anything, only insert
-                        // stuff from the clipboard. If they are not the same,
-                        // the selected text gets replaced.
-                        let start = usize::min(text_selection_start, text_selection_end);
-                        let end = usize::max(text_selection_start, text_selection_end);
-
-                        let s = inner_ctrl.get_clipboard_text();
-                        let _ = text.try_splice(start, end - start, &s);
-
-                        text_cursor += s.len();
-                        text_selection_start = text_cursor;
-                        text_selection_end = text_cursor;
-
-                        (true, true, false, TextInputAction::None)
-                    } else {
-                        (false, true, false, TextInputAction::None)
-                    }
-                }
-
-                Inputs::KB_ENTER => {
-                    inner_ctrl.set_active(false);
-                    deactivated_from_kb = true;
-
-                    (true, false, false, TextInputAction::Submit)
-                }
-
-                Inputs::KB_ESCAPE => {
-                    inner_ctrl.set_active(false);
-                    deactivated_from_kb = true;
-
-                    (true, false, false, TextInputAction::Cancel)
-                }
-
-                _ => (false, true, false, TextInputAction::None),
-            };
-
-            if handled {
-                (active, changed, action)
-            } else {
-                // TODO(yan): @Correctness If we missed frames, this structure
-                // of handling inputs drops inputs received characters. Oh well.
-                if text_selection_start != text_selection_end {
+    let (active, changed, action) = if active_orig
+        && (received_characters_unfiltered_count > 0 || inputs_pressed != Inputs::NONE)
+    {
+        let (handled, active, changed, action) = match inputs_pressed {
+            Inputs::KB_BACKSPACE => {
+                if text.len() > 0 {
                     let start = usize::min(text_selection_start, text_selection_end);
                     let end = usize::max(text_selection_start, text_selection_end);
 
-                    let _ = text.try_splice(start, end - start, &received_characters);
+                    if start != end {
+                        // Ok to unwrap, because we are only removing.
+                        text.try_splice(start, end - start, "").unwrap();
 
-                    text_cursor = start + received_characters.len();
-                    text_selection_start = text_cursor;
-                    text_selection_end = text_cursor;
-                } else if text_cursor == text.len() {
-                    let _ = text.try_extend(&received_characters);
+                        text_cursor = start;
+                        text_selection_start = start;
+                        text_selection_end = start;
+                    } else if text_cursor == text.len() {
+                        let text_cursor_after_trunc = seek_prev(text_cursor, text);
 
-                    text_cursor = text.len();
-                    text_selection_start = text_cursor;
-                    text_selection_end = text_cursor;
+                        text.truncate(text_cursor_after_trunc);
+
+                        text_cursor = text_cursor_after_trunc;
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+                    } else if text_cursor > 0 {
+                        let text_cursor_after = seek_prev(text_cursor, text);
+                        let delete_count = text_cursor - text_cursor_after;
+
+                        // Ok to unwrap, because we are only removing.
+                        text.try_splice(text_cursor_after, delete_count, "")
+                            .unwrap();
+
+                        text_cursor = text_cursor_after;
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+                    }
+
+                    (true, true, true, TextInputAction::None)
                 } else {
-                    let _ = text.try_splice(text_cursor, 0, &received_characters);
+                    (true, true, false, TextInputAction::None)
+                }
+            }
 
-                    text_cursor += received_characters.len();
+            Inputs::KB_DELETE => {
+                if text.len() > 0 {
+                    let last_char_index = seek_prev(text.len(), text);
+
+                    if text_selection_start != text_selection_end {
+                        let start = usize::min(text_selection_start, text_selection_end);
+                        let end = usize::max(text_selection_start, text_selection_end);
+
+                        // Ok to unwrap, because we are only removing.
+                        text.try_splice(start, end - start, "").unwrap();
+
+                        text_cursor = start;
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+                    } else if text_cursor == last_char_index {
+                        text.truncate(last_char_index);
+
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+                    } else if text_cursor < last_char_index {
+                        let delete_count = seek_next(text_cursor, text) - text_cursor;
+
+                        // Ok to unwrap, because we are only removing.
+                        text.try_splice(text_cursor, delete_count, "").unwrap();
+
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+                    }
+
+                    (true, true, true, TextInputAction::None)
+                } else {
+                    (true, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_A => {
+                if modifiers == Modifiers::CTRL {
+                    text_cursor = 0;
+                    text_selection_start = 0;
+                    text_selection_end = text.len();
+
+                    (true, true, false, TextInputAction::None)
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_LEFT_ARROW => {
+                text_cursor = seek_prev(text_cursor, text);
+                text_selection_end = text_cursor;
+                if !modifiers.intersects(Modifiers::SHIFT) {
                     text_selection_start = text_cursor;
-                    text_selection_end = text_cursor;
                 }
 
-                (true, true, TextInputAction::None)
+                (true, true, false, TextInputAction::None)
             }
-        } else if hovered && inputs_pressed == Inputs::MB_LEFT {
-            inner_ctrl.set_active(true);
-            text_cursor = text.len();
-            text_selection_start = text_cursor;
-            text_selection_end = text_cursor;
 
-            (true, false, TextInputAction::None)
-        } else {
-            (active_orig, false, TextInputAction::None)
+            Inputs::KB_B => {
+                if modifiers == Modifiers::CTRL {
+                    text_cursor = seek_prev(text_cursor, text);
+                    text_selection_start = text_cursor;
+                    text_selection_end = text_cursor;
+
+                    (true, true, false, TextInputAction::None)
+                } else if modifiers == Modifiers::CTRL | Modifiers::SHIFT {
+                    text_cursor = seek_prev(text_cursor, text);
+                    text_selection_end = text_cursor;
+
+                    (true, true, false, TextInputAction::None)
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_RIGHT_ARROW => {
+                text_cursor = seek_next(text_cursor, text);
+                text_selection_end = text_cursor;
+                if !modifiers.intersects(Modifiers::SHIFT) {
+                    text_selection_start = text_cursor;
+                }
+
+                (true, true, false, TextInputAction::None)
+            }
+
+            Inputs::KB_F => {
+                if modifiers == Modifiers::CTRL {
+                    text_cursor = seek_next(text_cursor, text);
+                    text_selection_start = text_cursor;
+                    text_selection_end = text_cursor;
+
+                    (true, true, false, TextInputAction::None)
+                } else if modifiers == Modifiers::CTRL | Modifiers::SHIFT {
+                    text_cursor = seek_next(text_cursor, text);
+                    text_selection_end = text_cursor;
+
+                    (true, true, false, TextInputAction::None)
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_X => {
+                if modifiers == Modifiers::CTRL {
+                    if text_selection_start != text_selection_end {
+                        let start = usize::min(text_selection_start, text_selection_end);
+                        let end = usize::max(text_selection_start, text_selection_end);
+
+                        let s = &text[start..end];
+                        inner_ctrl.set_clipboard_text(s);
+
+                        text.try_splice(start, end - start, "").unwrap();
+
+                        text_cursor = start;
+                        text_selection_start = text_cursor;
+                        text_selection_end = text_cursor;
+
+                        (true, true, false, TextInputAction::None)
+                    } else {
+                        (true, true, false, TextInputAction::None)
+                    }
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_C => {
+                if modifiers == Modifiers::CTRL {
+                    if text_selection_start != text_selection_end {
+                        let start = usize::min(text_selection_start, text_selection_end);
+                        let end = usize::max(text_selection_start, text_selection_end);
+
+                        let s = &text[start..end];
+                        inner_ctrl.set_clipboard_text(s);
+
+                        (true, true, false, TextInputAction::None)
+                    } else {
+                        (true, true, false, TextInputAction::None)
+                    }
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_V => {
+                if modifiers == Modifiers::CTRL {
+                    // start and end can be the same index here, in which
+                    // case the splice will not remove anything, only insert
+                    // stuff from the clipboard. If they are not the same,
+                    // the selected text gets replaced.
+                    let start = usize::min(text_selection_start, text_selection_end);
+                    let end = usize::max(text_selection_start, text_selection_end);
+
+                    let s = inner_ctrl.get_clipboard_text();
+                    let _ = text.try_splice(start, end - start, &s);
+
+                    text_cursor += s.len();
+                    text_selection_start = text_cursor;
+                    text_selection_end = text_cursor;
+
+                    (true, true, false, TextInputAction::None)
+                } else {
+                    (false, true, false, TextInputAction::None)
+                }
+            }
+
+            Inputs::KB_ENTER => {
+                inner_ctrl.set_active(false);
+                deactivated_from_kb = true;
+
+                (true, false, false, TextInputAction::Submit)
+            }
+
+            Inputs::KB_ESCAPE => {
+                inner_ctrl.set_active(false);
+                deactivated_from_kb = true;
+
+                (true, false, false, TextInputAction::Cancel)
+            }
+
+            _ => (false, true, false, TextInputAction::None),
         };
+
+        if handled {
+            (active, changed, action)
+        } else {
+            // TODO(yan): @Correctness If we missed frames, this structure
+            // of handling inputs drops inputs received characters. Oh well.
+            if text_selection_start != text_selection_end {
+                let start = usize::min(text_selection_start, text_selection_end);
+                let end = usize::max(text_selection_start, text_selection_end);
+
+                let _ = text.try_splice(start, end - start, &received_characters);
+
+                text_cursor = start + received_characters.len();
+                text_selection_start = text_cursor;
+                text_selection_end = text_cursor;
+            } else if text_cursor == text.len() {
+                let _ = text.try_extend(&received_characters);
+
+                text_cursor = text.len();
+                text_selection_start = text_cursor;
+                text_selection_end = text_cursor;
+            } else {
+                let _ = text.try_splice(text_cursor, 0, &received_characters);
+
+                text_cursor += received_characters.len();
+                text_selection_start = text_cursor;
+                text_selection_end = text_cursor;
+            }
+
+            (true, true, TextInputAction::None)
+        }
+    } else if hovered && inputs_pressed == Inputs::MB_LEFT {
+        inner_ctrl.set_active(true);
+        text_cursor = text.len();
+        text_selection_start = text_cursor;
+        text_selection_end = text_cursor;
+
+        (true, false, TextInputAction::None)
+    } else {
+        (active_orig, false, TextInputAction::None)
+    };
 
     let mut state = cast_state_mut(inner_ctrl.state_mut());
     state.text_cursor = text_cursor;
@@ -543,8 +580,8 @@ where
         inner_ctrl.request_want_capture_keyboard();
     }
 
-    if let Some(callback) = callback {
-        callback(
+    if let Some(result_callback) = result_callback {
+        result_callback(
             &TextInputCallbackData {
                 active,
                 changed,

@@ -5,7 +5,7 @@ use core::str::FromStr;
 use arrayvec::ArrayString;
 
 use crate::core::Frame;
-use crate::widgets::{text_input_with_theme, Theme};
+use crate::widgets::{do_text_input_and_file_taxes, Theme};
 
 // TODO(yan): float2_input, float3_input, float4_input
 // TODO(yan): Consider adding a slider handle to float inputs and removing float sliders.
@@ -83,11 +83,19 @@ where
     let mut buf: ArrayString<128> = ArrayString::new();
 
     // TODO(yan): Current approach draws a value first, and only then applies
-    // parsing and clamping rejections. This looks jumpy onscreen. Add a
-    // rejection callback to text input, so that we can reject a value before it
-    // is displayed.
+    // parsing and clamping rejections. This looks jumpy onscreen. For this to
+    // work well, we'd have to do drawing in here.
     let _ = write!(buf, "{:.1$}", value, usize::from(precision));
-    if text_input_with_theme(frame, id, &mut buf, label, theme) {
+    if do_text_input_and_file_taxes::<_, _, &str>(
+        frame,
+        id,
+        &mut buf,
+        label,
+        None,
+        Some(&float_filter),
+        &[],
+        theme,
+    ) {
         match f32::from_str(&buf) {
             Ok(mut new_value) => {
                 new_value = f32::clamp(new_value, min, max);
@@ -102,4 +110,12 @@ where
     }
 
     false
+}
+
+fn float_filter(c: char) -> Option<char> {
+    if c == '.' || c == '+' || c == '-' || c.is_ascii_digit() {
+        Some(c)
+    } else {
+        None
+    }
 }
