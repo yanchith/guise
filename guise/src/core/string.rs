@@ -23,8 +23,8 @@ pub trait TextStorage: Deref<Target = str> {
     ) -> Result<(), TextCapacityError>;
 }
 
-// TODO(yan): VecString only exists to store strings with an allocator. This
-// should eventually be removed, once Rust has String<A>.
+// TODO(yan): @Cleanup VecString only exists to store strings with an
+// allocator. This should eventually be removed, once Rust has String<A>.
 #[derive(Debug)]
 pub struct VecString<A: Allocator>(Vec<u8, A>);
 
@@ -67,9 +67,13 @@ impl<A: Allocator> VecString<A> {
     }
 
     pub fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
-        // TODO(yan): Use fallible allocation and String::try_reserve.
-        self.0.extend(s.as_bytes());
-        Ok(())
+        match self.0.try_reserve(s.len()) {
+            Ok(()) => {
+                self.0.extend(s.as_bytes());
+                Ok(())
+            }
+            Err(_) => Err(TextCapacityError),
+        }
     }
 
     pub fn try_splice(
@@ -224,14 +228,18 @@ impl<A: Allocator> TextStorage for VecString<A> {
 impl TextStorage for String {
     #[inline]
     fn truncate(&mut self, new_len: usize) {
-        String::truncate(self, new_len)
+        self.truncate(new_len)
     }
 
     #[inline]
     fn try_extend(&mut self, s: &str) -> Result<(), TextCapacityError> {
-        // TODO(yan): Use fallible allocation and String::try_reserve.
-        String::push_str(self, s);
-        Ok(())
+        match self.try_reserve(s.len()) {
+            Ok(()) => {
+                self.push_str(s);
+                Ok(())
+            }
+            Err(_) => Err(TextCapacityError),
+        }
     }
 
     #[inline]
