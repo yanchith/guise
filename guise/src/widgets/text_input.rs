@@ -629,20 +629,18 @@ where
     if autocomplete_open == AUTOCOMPLETE_OPEN && autocomplete.len() > 0 {
         let mut results: ArrayVec<&str, 20> = ArrayVec::new();
 
-        if text.len() > 0 {
-            // TODO(yan): Ignore case (but don't allocate!).
-            // TODO(yan): Fuzzy string matching and sorting by score.
+        // TODO(yan): Ignore case (but don't allocate!).
+        // TODO(yan): Fuzzy string matching and sorting by score.
+        for candidate in autocomplete {
             let text_str: &str = text.deref();
-            for candidate in autocomplete {
-                let candidate_str: &str = candidate.deref();
+            let candidate_str: &str = candidate.deref();
 
-                if candidate_str.contains(text_str) {
-                    results.push(candidate_str);
-                }
+            if candidate_str.contains(text_str) {
+                results.push(candidate_str);
+            }
 
-                if results.is_full() {
-                    break;
-                }
+            if results.is_full() {
+                break;
             }
         }
 
