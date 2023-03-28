@@ -8,6 +8,7 @@
 #![allow(clippy::comparison_chain)]
 #![allow(clippy::len_zero)]
 #![allow(clippy::partialeq_to_none)]
+#![allow(clippy::single_match)]
 #![allow(clippy::too_many_arguments)]
 
 // TODO(yan): Don't even depend on alloc, if we ever have the time to write our
