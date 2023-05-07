@@ -52,7 +52,7 @@ impl Inputs {
     pub const KB_C: Self = Self(0x2000000);
     pub const KB_V: Self = Self(0x8000000);
 
-    // TODO(yan): Fill in gamepad thingies.
+    // TODO(yan): Add gamepad buttons.
 
     pub const NONE: Self = Self(0);
     pub const ALL: Self = Self::MB_LEFT
@@ -1381,8 +1381,8 @@ impl<'a, A: Allocator + Clone> Frame<'a, A> {
             //
             // TODO(yan): @Correctness This assert goes off if we render the
             // component only on some frames (discoverd by drawing a conditional
-            // window in PH). We most definitely were not updating the same
-            // component multiple times per frame, so this is an issue with
+            // window in the game). We most definitely were not updating the
+            // same component multiple times per frame, so this is an issue with
             // unlinking dead controls and/or GC?
             assert!(
                 ctrl.last_frame != self.ui.current_frame,
@@ -1632,7 +1632,6 @@ pub struct Ctrl<'a, A: Allocator + Clone> {
     ui: &'a mut Ui<A>,
 }
 
-// TODO(yan): Vertical and horizontal align.
 impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
     pub fn set_active(&mut self, active: bool) {
         if active {
@@ -1830,10 +1829,6 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
         self.draw_text_and_do_dishes(true, None, inset, text, halign, valign, wrap, color);
     }
 
-    // TODO(yan): @Cleanup This text drawing routine is a monster. It is too
-    // general for the usecases of drawing a static text (e.g. a control label),
-    // and at the same time not powerful enough to draw a text input or a text
-    // area, with features selection, cursors, and stuff.
     fn draw_text_and_do_dishes(
         &mut self,
         extend_inline_content_rect: bool,
@@ -1847,15 +1842,17 @@ impl<'a, A: Allocator + Clone> Ctrl<'a, A> {
     ) {
         assert!(inset >= 0.0);
 
-        // TODO(yan): This has layout issues (characters not being aligned
-        // vertically to the baseline) on Roboto, IBM Plex Mono, and Liberation
-        // Mono fonts, but not on Proggy Clean. Pixel peeping in RenderDoc
-        // showed a consistent 1px or sometimes 2px error in some characters,
-        // e.g. for 'r' and 'i' in Liberation Mono, 'i' is rendered one pixel
-        // higher than expected (or 'r' is rendered one pixel lower). Weirdly,
-        // they have the same ymin (zero) in metrics returned by fontdue, even
-        // though they are visibly offset in the rasterized atlas. Could this be
-        // an error in fontdue - either in metrics, or rasterization?
+        // TODO(yan): @Bug @Correctness #Antialiasing? This has layout issues
+        // (characters not being aligned vertically to the baseline) on Roboto,
+        // IBM Plex Mono, and Liberation Mono fonts, but not on Proggy
+        // Clean. Pixel peeping in RenderDoc showed a consistent 1px or
+        // sometimes 2px error in some characters, e.g. for 'r' and 'i' in
+        // Liberation Mono, 'i' is rendered one pixel higher than expected (or
+        // 'r' is rendered one pixel lower). Weirdly, they have the same ymin
+        // (zero) in metrics returned by fontdue, even though they are visibly
+        // offset in the rasterized atlas. Could this be an error in fontdue -
+        // either in metrics, or rasterization? Do we want to remove fontdue and
+        // do our own thing?
 
         let build_parent_idx = self.ui.build_parent_idx.unwrap();
         let next_draw_primitive_idx = self.ui.draw_primitives.len();

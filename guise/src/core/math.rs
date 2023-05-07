@@ -346,10 +346,9 @@ impl Rect {
         // dimension representable in whole pixels after rendering. If the
         // backend supports AA, this is probably useless, and maybe even makes
         // things look much worse, but it helps us deal with moiree patterns and
-        // various ugliness when the backend doesn't AA.  What is the best
-        // approach here? We also originally didn't do this for text, but now we
-        // do. Is it a mistake? I think I should finally stop being a dilettante
-        // and learn about drawing things.
+        // various ugliness when the backend doesn't AA. What is the best
+        // approach here? Should we be using this? Should we be using this for
+        // text? We were at some point..
 
         Self {
             x: self.x,
