@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::mem;
-use std::num::{NonZeroU32, NonZeroU64};
+use std::num::NonZeroU64;
 
 use wgpu::util::DeviceExt as _;
 
@@ -191,7 +191,7 @@ impl Renderer {
             lod_min_clamp: 0.0,
             lod_max_clamp: f32::MAX,
             compare: None,
-            anisotropy_clamp: None,
+            anisotropy_clamp: 1,
             border_color: None,
         });
 
@@ -242,8 +242,8 @@ impl Renderer {
             data,
             wgpu::ImageDataLayout {
                 offset: 0,
-                bytes_per_row: Some(NonZeroU32::new(4 * width).unwrap()),
-                rows_per_image: Some(NonZeroU32::new(height).unwrap()),
+                bytes_per_row: Some(4 * width),
+                rows_per_image: Some(height),
             },
             wgpu::Extent3d {
                 width,
